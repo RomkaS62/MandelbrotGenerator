@@ -11,6 +11,10 @@
 #include "hue.h"
 #include "cdouble.h"
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <fcntl.h>
+#endif
+
 static uint16_t width;
 static uint16_t height;
 static double radius;
@@ -214,6 +218,10 @@ int main(int argc, char **argv)
 	struct bmp_img *downsampled_img = NULL;
 	FILE *f = NULL;
 
+#if defined(_WIN32) || defined(_WIN64)
+	_set_fmode(_O_BINARY);
+#endif
+
 	width = get_opt_u16("-w", 1, 640, argc, argv);
 	height = get_opt_u16("-h", 1, 480, argc, argv);
 	origin.real = get_opt_d("-x", 1, 0.0, argc, argv);
@@ -234,6 +242,7 @@ int main(int argc, char **argv)
 	printf("Super-sample level %" PRIu16 "\n", supersample_level);
 	printf("Base width: %" PRIu16 "\n", width * (1 << supersample_level));
 	printf("Base height: %" PRIu16 "\n", height * (1 << supersample_level));
+	printf("Threads: %" PRIu16 "\n", threads);
 	img = bmp_new(width * (1 << supersample_level), height * (1 << supersample_level));
 	draw_mandelbrot(img, origin, radius);
 	if (supersample_level) {
