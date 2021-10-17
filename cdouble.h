@@ -12,14 +12,22 @@ struct cdouble {
 
 static inline struct cdouble cd_mul(struct cdouble d1, struct cdouble d2)
 {
-	return (struct cdouble) { d1.real * d2.real - d1.img * d2.img,
-		d1.real * d2.img + d1.img * d2.real
-	};
+	struct cdouble ret;
+
+	ret.real = d1.real * d2.real - d1.img * d2.img;
+	ret.img = d1.real * d2.img + d1.img * d2.real;
+
+	return ret;
 }
 
 static inline struct cdouble cd_add(struct cdouble d1, struct cdouble d2)
 {
-	return (struct cdouble) {d1.real + d2.real, d1.img + d2.img};
+	struct cdouble ret;
+
+	ret.real = d1.real + d2.real;
+	ret.img = d1.img + d2.img;
+
+	return ret;
 }
 
 static inline struct cdouble cd_sqr(struct cdouble d)

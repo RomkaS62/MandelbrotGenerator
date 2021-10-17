@@ -11,6 +11,10 @@
 #include "hue.h"
 #include "cdouble.h"
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <fcntl.h>
+#endif
+
 static uint16_t width;
 static uint16_t height;
 static double radius;
@@ -27,6 +31,12 @@ struct draw_lines_data {
 	double from_x;
 	double from_y;
 	double step;
+
+	draw_lines_data(struct bmp_img *img, uint16_t ln_from, uint16_t ln_to,
+			double from_x, double from_y, double step)
+		:img(img), ln_from(ln_from), ln_to(ln_to), from_x(from_x),
+		from_y(from_y), step(step)
+	{}
 };
 
 static const char * get_opt(const char *opt, int offset, const char *default_val,
@@ -170,25 +180,23 @@ static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 	lines_remainder = img->height % lines_per_thread;
 
 	for (i = 0; i < threads - 1; i++) {
-		struct draw_lines_data d = {
-			.img = img,
-			.ln_from = (uint16_t)(i * lines_per_thread),
-			.ln_to = (uint16_t)((i + 1) * lines_per_thread),
-			.from_x = org.real - (img->width / 2) * step,
-			.from_y = org.img - (img->height / 2) * step,
-			.step = step
-		};
-		data.push_back(d);
+		data.push_back(draw_lines_data(
+			img,
+			(uint16_t)(i * lines_per_thread),
+			(uint16_t)((i + 1) * lines_per_thread),
+			org.real - (img->width / 2) * step,
+			org.img - (img->height / 2) * step,
+			step
+		));
 	}
-	struct draw_lines_data d = {
-		.img = img,
-		.ln_from = (uint16_t)((threads - 1) * lines_per_thread),
-		.ln_to = (uint16_t)(threads * lines_per_thread + lines_remainder),
-		.from_x = org.real - (img->width / 2) * step,
-		.from_y = org.img - (img->height / 2) * step,
-		.step = step
-	};
-	data.push_back(d);
+	data.push_back(draw_lines_data(
+		img,
+		(uint16_t)((threads - 1) * lines_per_thread),
+		(uint16_t)(threads * lines_per_thread + lines_remainder),
+		org.real - (img->width / 2) * step,
+		org.img - (img->height / 2) * step,
+		step
+	));
 
 	for (i = 0; i < threads; i++) {
 		thread_pool.push_back(std::make_unique<std::thread>(
@@ -210,6 +218,10 @@ int main(int argc, char **argv)
 	struct bmp_img *downsampled_img = NULL;
 	FILE *f = NULL;
 
+#if defined(_WIN32) || defined(_WIN64)
+	_set_fmode(_O_BINARY);
+#endif
+
 	width = get_opt_u16("-w", 1, 640, argc, argv);
 	height = get_opt_u16("-h", 1, 480, argc, argv);
 	origin.real = get_opt_d("-x", 1, 0.0, argc, argv);
@@ -230,6 +242,7 @@ int main(int argc, char **argv)
 	printf("Super-sample level %" PRIu16 "\n", supersample_level);
 	printf("Base width: %" PRIu16 "\n", width * (1 << supersample_level));
 	printf("Base height: %" PRIu16 "\n", height * (1 << supersample_level));
+	printf("Threads: %" PRIu16 "\n", threads);
 	img = bmp_new(width * (1 << supersample_level), height * (1 << supersample_level));
 	draw_mandelbrot(img, origin, radius);
 	if (supersample_level) {
