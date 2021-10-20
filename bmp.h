@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 struct pixel {
-	unsigned char r, g, b;
+	unsigned char b, g, r;
 };
 
 /* A bitmap image. The pixel array is a 2D one. Pixel[0, 0] represents bottom

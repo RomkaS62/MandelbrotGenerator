@@ -118,12 +118,17 @@ struct bmp_img * bmp_downsample(const struct bmp_img *img, unsigned level)
 
 enum bmp_error bmp_write_f(const struct bmp_img *img, FILE *f)
 {
+	char *pixel_buf;
+	char *write_head;
+	size_t pixel_buffer_length;
+	size_t i;
 	uint32_t pixel_offset;
 	uint32_t bmp_file_size;
 	unsigned row_length;
 	unsigned row_padding;
 	uint16_t y;
 	uint16_t x;
+	struct pixel p;
 
 	/* Pixel buffer offset begins at an index that is aligned to 4 bytes. */
 	pixel_offset = BMP_HEADER_LENGTH + BMP_DIB_LENGTH;
@@ -134,7 +139,8 @@ enum bmp_error bmp_write_f(const struct bmp_img *img, FILE *f)
 	row_padding = (row_length & 3)	/* Is row length a multiple of 4? */
 		? 4 - (row_length & 3)
 		: 0;
-	bmp_file_size = pixel_offset + (row_length + row_padding) * img->height;
+	pixel_buffer_length = (row_length + row_padding) * img->height;
+	bmp_file_size = pixel_offset + pixel_buffer_length;
 
 #ifndef NDEBUG
 	printf("Width: %"PRIu16"\n", img->width);
@@ -167,13 +173,22 @@ enum bmp_error bmp_write_f(const struct bmp_img *img, FILE *f)
 	/* Pixels are stored in rows to form a pixel array. Each y stores all
 	 * bits of its pixels and adds padding to make sure the y length is a
 	 * multiple of 4 bytes. */
+	pixel_buf = malloc(pixel_buffer_length);
+	write_head = pixel_buf;
 	for (y = 0; y < img->height; y++) {
 		for (x = 0; x < img->width; x++) {
-			write_pixel_f(bmp_pixel(img, x, y), f);
+			p = bmp_pixel(img, x, y);
+			*write_head++ = p.b;
+			*write_head++ = p.g;
+			*write_head++ = p.r;
 		}
-		write_zero_f(row_padding, f);
+		for (i = 0; i < row_padding; i++) {
+			*write_head++ = 0;
+		}
 	}
+	fwrite(pixel_buf, 1, pixel_buffer_length, f);
 
+	free(pixel_buf);
 	return BMP_SUCCESS;
 }
 
