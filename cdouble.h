@@ -30,9 +30,21 @@ static inline struct cdouble cd_add(struct cdouble d1, struct cdouble d2)
 	return ret;
 }
 
+/*
+ * (a + bi) * (a + bi)
+ *      = (a * a + a * bi) + (abi + b^2 * i^2)
+ *      = a^2 + abi + abi + b^2 * (-1)
+ *      = a^2 + 2abi - b^2
+ *      = (a^2 - b^2) + 2abi
+ */
 static inline struct cdouble cd_sqr(struct cdouble d)
 {
-	return cd_mul(d, d);
+	struct cdouble ret;
+
+	ret.real = d.real * d.real - d.img * d.img;
+	ret.img = 2 * d.real * d.img;
+
+	return ret;
 }
 
 static inline double cd_magnitude_sqr(struct cdouble d)
