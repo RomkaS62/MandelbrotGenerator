@@ -12,5 +12,9 @@ target_link_libraries(mandelbrot Threads::Threads)
 add_executable(tst_arr_shift tst_arr_shift.c arrshift.c)
 add_test(tst_arr_shift tst_arr_shift)
 
-add_executable(tst_big_int_add tst_big_int_mul.c big_int.c)
+add_executable(tst_big_int_mul tst_big_int_mul.c big_int.c)
 add_test(tst_big_int_mul tst_big_int_mul)
+add_executable(bezier bezier.c)
+
+install(TARGETS bezier)
+install(TARGETS mandelbrot)

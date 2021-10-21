@@ -245,6 +245,7 @@ int main(int argc, char **argv)
 	printf("Threads: %" PRIu16 "\n", threads);
 	img = bmp_new(width * (1 << supersample_level), height * (1 << supersample_level));
 	draw_mandelbrot(img, origin, radius);
+	printf("Rendering finished. Saving to %s\n", file);
 	if (supersample_level) {
 		downsampled_img = bmp_downsample(img, supersample_level);
 		bmp_write_f(downsampled_img, f);
