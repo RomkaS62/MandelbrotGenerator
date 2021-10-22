@@ -2,8 +2,14 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <math.h>
 #include "big_int.h"
 #include "mbarray.h"
+#include "mbitr.h"
+#include "parse.h"
+#include "log.h"
 
 static uint32_t zero_buf = 0;
 static const struct big_int bi_zero = {
@@ -34,9 +40,10 @@ static size_t trailing_u32(uint32_t *buf, size_t len, uint32_t val)
 {
 	size_t i;
 	size_t ret = 0;
+	uint32_t u;
 
-	for (i = len - 1; i > 0; i--) {
-		if (buf[i] != val)
+	foreach_reverse (buf, len, i, u) {
+		if (u != val)
 			break;
 		ret++;
 	}
@@ -107,56 +114,12 @@ static struct big_int * bi_cpy_p(const struct big_int *i, size_t size)
 	return bi_cpy_po(i, size, 0);
 }
 
-/* Reads a 64-bit unsigned integer from uint32_t array starting at bit that is
- * of bits length. */
-static uint64_t get_u64(uint32_t *buf, size_t length, size_t bit, size_t bits)
-{
-	size_t u32_shift;	/* Whole uint32_t's shifted. */
-	size_t bit_shift;	/* Bits remaining to shift after shifting whole
-				   uint32_t's */
-	uint64_t ret;
-
-	/* Someone wants to read bits outside the buffer. */
-	if ((bit + bits) / 32 > length) {
-		return INT_MIN;
-	}
-
-	u32_shift = bit / 32;
-	bit_shift = bit % 32;
-
-	/* If bit_shift is 0, life is easy. */
-	if (!bit_shift) {
-		ret = buf[u32_shift] | buf[u32_shift + 1];
-	} else {
-		/* Discard trailing bit_shift bits form first uint32_t and read
-		 * extra bit_shift bits from third uint32_t. Imgagine that
-		 * bit_shift is 5. Situation looks like the following:
-		 *              Discarded
-		 *      buf[0]  00000           000000000000000000000000000
-		 *
-		 *      buf[1]                  00000000000000000000000000000000
-		 *
-		 *      buf[2]  00000           000000000000000000000000000
-		 *                              Discarded
-		 *
-		 * Since these are all unsigned integers, no undefined
-		 * behaviour should ensue from bit shifts.
-		 * */
-		ret = ((uint64_t)buf[u32_shift] << bit_shift) << 32;
-		ret |= (uint64_t)buf[u32_shift + 1] << bit_shift;
-		ret |= (uint64_t)buf[u32_shift + 2] >> (32 - bit_shift);
-	}
-	ret >>= (64 - bits);
-
-	return ret;
-}
-
 /* Adds val to buf in place at position 'at' while checking for overflow.
  * Returns any overflow the entire operation produced. */
 static uint32_t u32arr_add_u32(uint32_t *buf, size_t len, size_t at, uint32_t val)
 {
 	uint64_t sum;
-	uint32_t overflow;
+	uint32_t carry;
 
 	if (!val)
 		return 0;
@@ -166,14 +129,14 @@ static uint32_t u32arr_add_u32(uint32_t *buf, size_t len, size_t at, uint32_t va
 		exit(1);
 	}
 
-	sum = buf[at] + val;
-	overflow = sum >> 32;
+	sum = (uint64_t)buf[at] + val;
+	carry = sum >> 32;
 	buf[at] = sum;
-	if (overflow) {
+	if (carry) {
 		if (at >= len) {
-			return overflow;
+			return carry;
 		}
-		return u32arr_add_u32(buf, len, at + 1, overflow);
+		return u32arr_add_u32(buf, len, at + 1, carry);
 	}
 
 	return 0;
@@ -215,7 +178,7 @@ static uint32_t u32arr_sub_u32(uint32_t *buf, size_t len, size_t at, uint32_t va
 	return 0;
 }
 
-static u32arr_sub_u64(uint32_t *buf, size_t len, size_t at, uint64_t val)
+static void u32arr_sub_u64(uint32_t *buf, size_t len, size_t at, uint64_t val)
 {
 	struct u64_split s;
 
@@ -246,6 +209,20 @@ static void u32arr_mul_u32(
 	}
 }
 
+static void u32arr_mul_u32_i(struct mb_array_u32 *arr, size_t digits, uint32_t val, size_t at)
+{
+	size_t i;
+	struct u64_split s;
+	uint32_t u;
+
+	foreach_reverse (arr->buf, digits, i, u) {
+		s = split_u64((uint64_t)u * (uint64_t)val);
+		arr->buf[i + at] = s.low;
+		if (i + 1 < digits)
+			u32arr_add_u32(arr->buf, arr->len, i + at + 1, s.high);
+	}
+}
+
 static void u32arr_mul_u64(
 		const struct mb_array_u32 *arr,
 		uint64_t val,
@@ -257,6 +234,107 @@ static void u32arr_mul_u64(
 	s = split_u64(val);
 	u32arr_mul_u32(arr, s.low, at, ret);
 	u32arr_mul_u32(arr, s.high, at + 1, ret);
+}
+
+static unsigned mb_log2(unsigned long num)
+{
+	unsigned ret = 0;
+	while (num >>= 1) {
+		ret++;
+	}
+
+	return ret;
+}
+
+static void parse_pow2(
+		struct mb_array_u32 *ret,
+		const char *str,
+		unsigned radix)
+{
+	size_t i;
+	size_t j;
+	uint32_t u;		/* Parsed uint32_t from str. */
+	size_t digits;		/* Total number of digits in str. */
+	size_t blk_size;	/* Digits to completely fill a uint32_t. */
+	size_t u32_blocks;	/* Number of such blocks. */
+	size_t rem_digits;	/* Remaining digits that do not fill a uint32_t. */
+	unsigned digit_bits;
+	int ch;	
+	char u32_char_block[16];
+
+	digits = mb_num_of_digits(str, radix);
+	blk_size = 1 << (mb_log2(radix) - 1);
+	u32_blocks = digits / blk_size;
+	rem_digits = digits % blk_size;
+	digit_bits = 32 / blk_size;
+
+	ret->len = u32_blocks + !!rem_digits;
+	ret->buf = malloc(ret->len * sizeof(ret->buf[0]));
+
+	foreach_strn_br(str, u32_char_block, blk_size, i, u32_blocks) {
+		u = 0;
+		foreach_strn_lr(u32_char_block, ch, j, blk_size) {
+			u <<= digit_bits;
+			u |= mb_parse_digit(ch, radix);
+		}
+		ret->buf[i] = u;
+	}
+	u = 0;
+	foreach_strn_l(str + u32_blocks * blk_size, ch, i, rem_digits) {
+		u <<= digit_bits;
+		u |= mb_parse_digit(ch, radix);
+	}
+	if (rem_digits)
+		ret->buf[ret->len - 1] = u;
+}
+
+static void parse_generic(struct mb_array_u32 *ret, const char *str, unsigned radix)
+{
+	size_t digits;
+	size_t i;
+	size_t buf_len;
+	unsigned digit;
+	int ch;
+
+	/* Radix that may or may not be a power of two. Life is hard. */
+
+	digits = mb_num_of_digits(str, radix);
+	buf_len = (size_t)ceil(digits * log2(radix) / 32.0);
+	ret->buf = malloc(buf_len * sizeof(ret->buf[0]));
+	ret->len = buf_len;
+	for (ch = *str; *str; str++, ch = *str) {
+		dbg_hexdump_u32(ret->buf, ret->len);
+		u32arr_mul_u32_i(ret, buf_len, radix, 0);
+		digit = mb_parse_digit(ch, radix);
+		u32arr_add_u32(ret->buf, ret->len, 0, digit);
+	}
+	dbg_hexdump_u32(ret->buf, ret->len);
+}
+
+struct mb_array_u32 u32arr_from_str(const char *str, unsigned radix)
+{
+	struct mb_array_u32 ret;
+
+	switch (radix) {
+	case 2:
+	case 4:
+	case 8:
+	case 16:
+	case 32:
+		parse_pow2(&ret, str, radix);
+		return ret;
+	}
+
+	if (radix > 10 + 'z' - 'a' + 1) {
+		m_eprintf("Unsupported base %i\n", radix);
+		ret.buf = NULL;
+		ret.len = 0;
+		return ret;
+	}
+
+	parse_generic(&ret, str, radix);
+
+	return ret;
 }
 
 struct big_int * bi_new(uint32_t init)
@@ -273,16 +351,18 @@ struct big_int * bi_new(uint32_t init)
 struct big_int * bi_new_u64(uint64_t init)
 {
 	struct big_int *ret;
+	struct u64_split val;
 
+	val = split_u64(init);
 	ret = malloc(sizeof(*ret));
-	if (init & ~0xFFFFFFFFUL) {
+	if (val.high) {
 		ret->arr.buf = malloc(2 * sizeof(ret->arr.buf[0]));
-		ret->arr.buf[0] = (uint32_t)(init & 0xFFFFFFFFUL);
-		ret->arr.buf[1] = (uint32_t)(init >> 32);
+		ret->arr.buf[0] = val.low;
+		ret->arr.buf[1] = val.high;
 		ret->arr.len = 2;
 	} else {
 		ret->arr.buf = malloc(sizeof(ret->arr.buf[0]));
-		ret->arr.buf[0] = (uint32_t)init;
+		ret->arr.buf[0] = val.low;
 		ret->arr.len = 1;
 	}
 
@@ -296,8 +376,24 @@ struct big_int * bi_new_from_u32arr(const uint32_t *init, size_t length)
 	ret = malloc(sizeof(*ret));
 	ret->arr.len = length;
 	ret->arr.buf = calloc(length, sizeof(ret->arr.buf[0]));
-	memcpy(ret->arr.buf, init, length);
+	memcpy(ret->arr.buf, init, length * sizeof(ret->arr.buf[0]));
 
+	return ret;
+}
+
+struct big_int * bi_new_from_str(const char *str, int radix)
+{
+	struct big_int *ret;
+
+	ret = malloc(sizeof(*ret));
+	ret->arr = u32arr_from_str(str, radix);
+
+	if (ret->arr.buf == NULL) {
+		free(ret);
+		return NULL;
+	}
+
+	normalize(ret);
 	return ret;
 }
 
@@ -362,6 +458,15 @@ struct big_int * bi_cpy(const struct big_int *i)
 	return ret;
 }
 
+int bi_is_zero(const struct big_int *i)
+{
+	if (i->arr.len == 1) {
+		if (i->arr.buf[0] == 0)
+			return 1;
+	}
+	return 0;
+}
+
 /* --- Operator functions producing a new value --- */
 
 struct big_int * bi_add_u64(const struct big_int *i, uint64_t val)
@@ -389,6 +494,9 @@ struct big_int * bi_sub_u64(const struct big_int *i, uint64_t val)
 struct big_int * bi_mul_u64(const struct big_int *i, uint64_t val)
 {
 	struct big_int *ret;
+
+	if (bi_is_zero(i) || val == 0)
+		return bi_cpy(&bi_zero);
 
 	ret = bi_cpy_p(i, i->arr.len + 1);
 	u32arr_mul_u64(&i->arr, val, 0, &ret->arr);
@@ -430,10 +538,14 @@ struct big_int * bi_mul(const struct big_int *i1, const struct big_int *i2)
 	struct big_int *ret;
 	size_t i;
 
+	if (bi_is_zero(i1) || bi_is_zero(i2))
+		return bi_cpy(&bi_zero);
+
 	ret = bi_new_p(i1->arr.len + i2->arr.len + 1);
 	for (i = 0; i < i2->arr.len; i++) {
 		u32arr_mul_u32(&i1->arr, i2->arr.buf[i], i, &ret->arr);
 	}
+	normalize(ret);
 
 	return ret;
 }
@@ -450,6 +562,20 @@ void bi_add_u64_i(struct big_int *i, uint64_t val)
 void bi_sub_u64_i(struct big_int *i, uint64_t val)
 {
 	u32arr_sub_u64(i->arr.buf, i->arr.len, 0, val);
+	normalize(i);
+}
+
+void bi_mul_u64_i(struct big_int *i, uint64_t val)
+{
+	uint64_t p;
+	size_t digits;
+	struct u64_split s;
+
+	digits = i->arr.len;
+	s = split_u64(val);
+	ensure_capacity(&i->arr, i->arr.len + 2);
+	u32arr_mul_u32_i(&i->arr, digits, s.high, 1);
+	u32arr_mul_u32_i(&i->arr, digits, s.low, 0);
 	normalize(i);
 }
 
@@ -473,3 +599,35 @@ void bi_sub_i(struct big_int *ret, const struct big_int *num)
 	}
 	normalize(ret);
 }
+
+void bi_mul_i(struct big_int *ret, const struct big_int *op)
+{
+	size_t i;
+	size_t digits;
+	uint32_t u;
+
+	digits = ret->arr.len;
+	ensure_capacity(&ret->arr, ret->arr.len + op->arr.len);
+	foreach_reverse (op->arr.buf, op->arr.len, i, u) {
+		u32arr_mul_u32_i(&ret->arr, digits, u, i);
+	}
+	normalize(ret);
+}
+
+char * bi_tostr(const struct big_int *ret)
+{
+	char *str;
+	char *write_head;
+	size_t i;
+	uint32_t u;
+
+	str = malloc(ret->arr.len * 8 + 1);
+	write_head = str;
+	foreach_reverse (ret->arr.buf, ret->arr.len, i, u) {
+		sprintf(write_head, "%08X", u);
+		write_head += 8;
+	}
+
+	return str;
+}
+
