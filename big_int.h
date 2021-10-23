@@ -9,7 +9,8 @@
 extern "C" {
 #endif
 
-/* Represents a little-endian unsigned big integer. */
+/* Represents a little-endian unsigned big integer. No such thing as overflow
+ * when adding and multiplying. Underflow results in 0. */
 struct big_int {
 	struct mb_array_u32 arr;	/* Little-endian array of uin32_t's. */
 };
@@ -24,6 +25,7 @@ int bi_cmp(const struct big_int *i1, const struct big_int *i2);
 struct big_int * bi_cpy(const struct big_int *i);
 
 int bi_is_zero(const struct big_int *i);
+void bi_set_zero(struct big_int *i);
 
 /* --- Operator functions producing a new value --- */
 
@@ -45,7 +47,7 @@ void bi_add_i(struct big_int *ret, const struct big_int *i);
 void bi_sub_i(struct big_int *ret, const struct big_int *i);
 void bi_mul_i(struct big_int *ret, const struct big_int *i);
 
-char * bi_tostr(const struct big_int *ret);
+char * bi_tostr(const struct big_int *ret, unsigned radix);
 
 #define MB_MAX(_a, _b) (((_a) > (_b)) ? (_a) : (_b))
 

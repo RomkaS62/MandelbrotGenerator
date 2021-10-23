@@ -4,6 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "mbarray.h"
+#include "mbitr.h"
 #include "big_int.h"
 #include "log.h"
 #include "mbutil.h"
@@ -82,10 +83,10 @@ int main(void)
 		op1 = bi_new_from_u32arr(test_case->arr1, test_case->arr1_length);
 		op2 = bi_new_from_u32arr(test_case->arr2, test_case->arr2_length);
 		res = bi_mul(op1, op2);
-		dbg_hexdump_u32(op1->arr.buf, op1->arr.len);
-		dbg_hexdump_u32(op2->arr.buf, op2->arr.len);
-		dbg_hexdump_u32(test_case->expected_result, test_case->exp_res_len);
-		dbg_hexdump_u32(res->arr.buf, res->arr.len);
+		print_bi(op1);
+		print_bi(op2);
+		print_biu32(test_case->expected_result, test_case->exp_res_len);
+		print_bi(res);
 		if (memcmp(test_case->expected_result, res->arr.buf, test_case->exp_res_len * sizeof(uint32_t))) {
 			return 1;
 		}
@@ -97,13 +98,16 @@ int main(void)
 
 	op1 = bi_new_from_u32arr(sqr_arr, MB_ARR_SIZE(sqr_arr));
 	op2 = bi_new_from_u32arr(sqr_arr, MB_ARR_SIZE(sqr_arr));
-	dbg_hexdump_u32(op1->arr.buf, op1->arr.len);
+	print_bi(op1);
 	bi_mul_i(op1, op2);
-	dbg_hexdump_u32(op1->arr.buf, op1->arr.len);
-	dbg_hexdump_u32(sqr_arr, MB_ARR_SIZE(sqr_arr));
+	print_bi(op1);
+	print_biu32(res_arr, MB_ARR_SIZE(res_arr));
 	if (memcmp(res_arr, op1->arr.buf, sizeof(res_arr))) {
+		puts("Fail\n");
 		return 2;
 	}
+
+	puts("Pass\n");
 
 	return 0;
 }

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include "big_int.h"
+#include "mbitr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -78,6 +80,28 @@ static inline void dbg_hexdump_u32(const uint32_t *arr, size_t len)
 	puts("");
 }
 
+static inline void print_bi(const struct big_int *i)
+{
+	char *str;
+
+	puts(str = bi_tostr(i, 16));
+	free(str);
+}
+
+static inline void print_biu32(const uint32_t *arr, size_t len)
+{
+	uint32_t num;
+
+	if (!len)
+		return;
+
+	printf("%X", arr[len - 1]);
+	foreach_reverse(arr, len - 1, len, num) {
+		printf("%08X", num);
+	}
+	puts("");
+}
+
 #else	/* Not debug */
 
 #define dbg_hexdump(_buf, _len)
@@ -86,6 +110,8 @@ static inline void dbg_hexdump_u32(const uint32_t *arr, size_t len)
 #define m_eprintf(_text, ...)
 #define m_fputs(_text)
 #define m_printf(_text, ...)
+#define print_bi(_bi)
+#define print_biu32(__u32arr, __len)
 
 #endif
 

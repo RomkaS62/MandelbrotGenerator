@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "big_int.h"
+#include "log.h"
+
+#define BEXPR_RADIX	(16)
 
 enum operation_t {
 	OP_ADD,
@@ -18,13 +21,15 @@ int main(int argc, char **argv)
 	char *str;
 
 	if (argc == 2) {
-		res = bi_new_from_str(argv[1], 10);
+		res = bi_new_from_str(argv[1], BEXPR_RADIX);
+		dbg_hexdump_u32(res->arr.buf, res->arr.len);
 		if (!res) {
 			return 5;
 		}
-		str = bi_tostr(res);
+		str = bi_tostr(res, BEXPR_RADIX);
 		puts(str);
 		free(str);
+		bi_delete(res);
 		return 0;
 	}
 
@@ -33,7 +38,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if ((op1 = bi_new_from_str(argv[1], 10)) == NULL) {
+	if ((op1 = bi_new_from_str(argv[1], BEXPR_RADIX)) == NULL) {
 		fprintf(stderr, "Not an integer: \"%s\"", argv[1]);
 		return 2;
 	}
@@ -49,7 +54,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	if ((op2 = bi_new_from_str(argv[3], 10)) == NULL) {
+	if ((op2 = bi_new_from_str(argv[3], BEXPR_RADIX)) == NULL) {
 		fprintf(stderr, "Not an integer: \"%s\"\n", argv[3]);
 		return 4;
 	}
@@ -66,7 +71,7 @@ int main(int argc, char **argv)
 		break;
 	}
 
-	puts(str = bi_tostr(res));
+	puts(str = bi_tostr(res, BEXPR_RADIX));
 
 	free(str);
 	bi_delete(op1);
