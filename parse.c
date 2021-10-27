@@ -16,7 +16,7 @@ size_t mb_num_of_digits(const char *str, unsigned radix)
 
 	if (radix > 10) {
 		foreach_str_l(str, ch, i) {
-			if (!(isdigit(ch) || ch >= 'a' && ch < ('a' + (char)radix - 10)))
+			if (!(isdigit(ch) || (ch >= 'a' && ch < ('a' + (char)radix - 10))))
 				break;
 			ret++;
 		}

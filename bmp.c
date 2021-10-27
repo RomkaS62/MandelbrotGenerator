@@ -12,14 +12,14 @@ static const char bmp_hdr_type[] = { 'B', 'M'};
 
 static inline void write_u16_f(uint16_t num, FILE *f)
 {
-	char buf[] = { num & 0xFF, ((num >> 8) & 0xFF) };
+	unsigned char buf[] = { num & 0xFF, ((num >> 8) & 0xFF) };
 
 	fwrite(buf, 1, 2, f);
 }
 
 static inline void write_u32_f(uint32_t num, FILE *f)
 {
-	char buf[] = {
+	unsigned char buf[] = {
 		num & 0xFF,
 		(num >> 8) & 0xFF,
 		(num >> 16) & 0xFF,
@@ -31,7 +31,7 @@ static inline void write_u32_f(uint32_t num, FILE *f)
 
 static inline void write_pixel_f(struct pixel p, FILE *f)
 {
-	char buf[] = { p.b, p.g, p.r };
+	unsigned char buf[] = { p.b, p.g, p.r };
 	fwrite(buf, 1, sizeof(buf), f);
 }
 

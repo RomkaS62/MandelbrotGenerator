@@ -166,7 +166,6 @@ static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 	std::vector<std::unique_ptr<std::thread>> thread_pool;
 	std::vector<struct draw_lines_data> data;
 	uint16_t i;
-	void *ret;
 	uint16_t lines_per_thread;
 	uint16_t lines_remainder;
 	double step;

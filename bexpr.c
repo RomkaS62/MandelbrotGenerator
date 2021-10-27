@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 	char *str;
 
 	if (argc == 2) {
-		res = bi_new_from_str(argv[1], BEXPR_RADIX);
+		res = bi_new_from_str(2, argv[1], BEXPR_RADIX);
 		dbg_hexdump_u32(res->arr.buf, res->arr.len);
 		if (!res) {
 			return 5;
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if ((op1 = bi_new_from_str(argv[1], BEXPR_RADIX)) == NULL) {
+	if ((op1 = bi_new_from_str(2, argv[1], BEXPR_RADIX)) == NULL) {
 		fprintf(stderr, "Not an integer: \"%s\"", argv[1]);
 		return 2;
 	}
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	if ((op2 = bi_new_from_str(argv[3], BEXPR_RADIX)) == NULL) {
+	if ((op2 = bi_new_from_str(2, argv[3], BEXPR_RADIX)) == NULL) {
 		fprintf(stderr, "Not an integer: \"%s\"\n", argv[3]);
 		return 4;
 	}
