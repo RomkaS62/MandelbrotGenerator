@@ -19,10 +19,6 @@ struct bezier {
 };
 
 static struct bezier curve;
-
-#define FL_OUTPUT_Y	(1 << 0)
-#define FL_OUTPUT_X	(1 << 1)
-static int flags = FL_OUTPUT_Y;
 static unsigned long samples = 1000;
 
 static double lerp_d(double d1, double d2, double t)
@@ -100,7 +96,7 @@ int main(int argc, char **argv)
 	unsigned long i;
 	struct point sample;
 
-	if (argc != 11)
+	if (argc != 10)
 		return 1;
 
 	curve.cp[0].base.x = parse_double(argv[1]);
@@ -112,23 +108,11 @@ int main(int argc, char **argv)
 	curve.cp[1].control.x = parse_double(argv[7]);
 	curve.cp[1].control.y = parse_double(argv[8]);
 	samples = parse_ul(argv[9]);
-	if (strcmp(argv[10], "x") == 0) {
-		flags = FL_OUTPUT_X;
-	} else if (strcmp(argv[10], "y") == 0) {
-		flags = FL_OUTPUT_Y;
-	} else {
-		fputs("Coordinate to output not specified\n", stderr);
-		return 4;
-	}
 
 	for (i = 0; i < samples; i++) {
 		t = (double)i / (double)(samples - 1);
 		sample = sample_bezier(&curve, t);
-		if (flags & FL_OUTPUT_X) {
-			printf("%.20e\n", sample.x);
-		} else {
-			printf("%.20e\n", sample.y);
-		}
+		printf("%.20e %.20e\n", sample.x, sample.y);
 	}
 
 	return 0;

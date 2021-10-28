@@ -12,11 +12,6 @@
 #include "parse.h"
 #include "log.h"
 
-static uint32_t zero_buf = 0;
-static const struct big_int bi_zero = {
-	{ &zero_buf, 1 }
-};
-
 struct u64_split {
 	uint32_t low;
 	uint32_t high;
@@ -70,7 +65,7 @@ static struct big_int * bi_cpy_po(const struct big_int *i, size_t size, size_t o
 	return ret;
 }
 
-static struct big_int * bi_cpy_p(const struct big_int *i, size_t size)
+struct big_int * bi_cpy_p(const struct big_int *i, size_t size)
 {
 	return bi_cpy_po(i, size, 0);
 }
@@ -100,15 +95,6 @@ static uint32_t u32arr_add_u32(uint32_t *buf, size_t len, size_t at, uint32_t va
 	}
 
 	return 0;
-}
-
-static void u32arr_add_u64(uint32_t *buf, size_t len, size_t at, uint64_t val)
-{
-	struct u64_split s;
-
-	s = split_u64(val);
-	u32arr_add_u32(buf, len, at, s.low);
-	u32arr_add_u32(buf, len, at + 1, s.high);
 }
 
 static uint32_t u32arr_sub_u32(uint32_t *buf, size_t len, size_t at, uint32_t val)
@@ -144,36 +130,6 @@ static void u32arr_sub_u64(uint32_t *buf, size_t len, size_t at, uint64_t val)
 	s = split_u64(val);
 	u32arr_sub_u32(buf, len, at, s.low);
 	u32arr_sub_u32(buf, len, at + 1, s.low);
-}
-
-/* Multiplies arr with val and adds the result to ret starting at offset 'at' */
-static void u32arr_mul_u32(
-		const struct mb_array_u32 *arr,
-		uint32_t val,
-		size_t at,
-		struct mb_array_u32 *ret)
-{
-	size_t i;
-	struct u64_split p;
-
-	for (i = 0; i < arr->len; i++) {
-		p = split_u64((uint64_t)arr->buf[i] * (uint64_t)val);
-		u32arr_add_u32(ret->buf, ret->len, at + i, p.low);
-		u32arr_add_u32(ret->buf, ret->len, at + i + 1, p.high);
-	}
-}
-
-static void u32arr_mul_u64(
-		const struct mb_array_u32 *arr,
-		uint64_t val,
-		size_t at,
-		struct mb_array_u32 *ret)
-{
-	struct u64_split s;
-
-	s = split_u64(val);
-	u32arr_mul_u32(arr, s.low, at, ret);
-	u32arr_mul_u32(arr, s.high, at + 1, ret);
 }
 
 static unsigned mb_log2(unsigned long num)
@@ -295,66 +251,45 @@ struct mb_array_u32 u32arr_from_str(size_t size, const char *str, unsigned radix
 	return ret;
 }
 
-struct big_int * bi_new(size_t size, uint32_t init)
+void bi_init_s(struct big_int *ret, size_t size, uint32_t init, size_t shift)
 {
-	struct big_int *ret;
-
 	if (!size)
 		size = 1;
 
-	ret = malloc(sizeof(*ret));
+	if (size < shift + 1)
+		size = shift + 1;
+
 	ret->arr.buf = calloc(1, sizeof(ret->arr.buf[0]) * size);
 	ret->arr.len = size;
-	ret->arr.buf[0] = init;
-
-	return ret;
+	ret->arr.buf[shift] = init;
 }
 
-struct big_int * bi_new_u64(size_t size, uint64_t init)
+void bi_init_u64_s(struct big_int *ret, size_t size, uint64_t init, size_t shift)
 {
-	struct big_int *ret;
 	struct u64_split val;
 
-	if (size < 2)
-		size = 2;
+	if (size < shift + 1)
+		size = shift + 1;
 
 	val = split_u64(init);
-	ret = malloc(sizeof(*ret));
-	ret->arr.buf = calloc(1, size * sizeof(ret->arr.buf[0]));
-	ret->arr.buf[0] = val.low;
-	ret->arr.buf[1] = val.high;
-
-	return ret;
+	ret->arr.buf = calloc(size, sizeof(ret->arr.buf[0]));
+	ret->arr.buf[shift] = val.low;
+	ret->arr.buf[shift + 1] = val.high;
 }
 
-struct big_int * bi_new_from_u32arr(size_t size, const uint32_t *init, size_t length)
+void bi_init_from_u32arr(struct big_int *ret, size_t size, const uint32_t *init, size_t length)
 {
-	struct big_int *ret;
-
 	if (length > size)
 		size = length;
 
-	ret = malloc(sizeof(*ret));
 	ret->arr.len = size;
 	ret->arr.buf = calloc(size, sizeof(ret->arr.buf[0]));
 	memcpy(ret->arr.buf, init, length * sizeof(ret->arr.buf[0]));
-
-	return ret;
 }
 
-struct big_int * bi_new_from_str(size_t size, const char *str, int radix)
+void bi_init_from_str(struct big_int *ret, size_t size, const char *str, int radix)
 {
-	struct big_int *ret;
-
-	ret = malloc(sizeof(*ret));
 	ret->arr = u32arr_from_str(size, str, radix);
-
-	if (ret->arr.buf == NULL) {
-		free(ret);
-		return NULL;
-	}
-
-	return ret;
 }
 
 void bi_delete(struct big_int *i)
@@ -445,125 +380,16 @@ void bi_set_zero(struct big_int *i)
 	i->arr.buf[0] = 0;
 }
 
-/* --- Operator functions producing a new value --- */
-
-struct big_int * bi_add_u64(const struct big_int *i, uint64_t val)
-{
-	struct big_int *ret;
-
-	assert(i != NULL);
-
-	ret = bi_cpy_p(i, MB_MAX(i->arr.len, 2));
-	u32arr_add_u64(ret->arr.buf, ret->arr.len, 0, val);
-
-	return ret;
-}
-
-struct big_int * bi_sub_u64(const struct big_int *i, uint64_t val)
-{
-	struct big_int *ret;
-	int cmp;
-
-	assert(i != NULL);
-
-	cmp = bi_cmp_u64(i, val);
-
-	if (cmp <= 0) {
-		return bi_cpy(&bi_zero);
-	}
-
-	ret = bi_cpy_p(i, MB_MAX(i->arr.len, 2));
-	u32arr_sub_u64(i->arr.buf, i->arr.len, 0, val);
-
-	return ret;
-}
-
-struct big_int * bi_mul_u64(const struct big_int *i, uint64_t val)
-{
-	struct big_int *ret;
-
-	assert(i != NULL);
-
-	if (bi_is_zero(i) || val == 0)
-		return bi_cpy(&bi_zero);
-
-	ret = bi_cpy_p(i, MB_MAX(i->arr.len, 2));
-	u32arr_mul_u64(&i->arr, val, 0, &ret->arr);
-
-	return ret;
-}
-
-struct big_int * bi_add(const struct big_int *i1, const struct big_int *i2)
-{
-	struct big_int *ret;
-	size_t i;
-
-	assert(i1 != NULL);
-	assert(i2 != NULL);
-
-	ret = bi_cpy_p(i1, MB_MAX(i1->arr.len, i2->arr.len));
-	for (i = 0; i < i2->arr.len; i++) {
-		u32arr_add_u32(ret->arr.buf, ret->arr.len, i, i2->arr.buf[i]);
-	}
-
-	return ret;
-}
-
-struct big_int * bi_sub(const struct big_int *i1, const struct big_int *i2)
-{
-	struct big_int *ret;
-	size_t i;
-	int cmp;
-
-	assert(i1 != NULL);
-	assert(i2 != NULL);
-
-	cmp = bi_cmp(i1, i2);
-
-	if (cmp < 0) {
-		return bi_cpy(&bi_zero);
-	}
-
-	if (cmp == 0)
-		return bi_cpy(i1);
-
-	ret = bi_cpy_p(i1, MB_MAX(i1->arr.len, i2->arr.len));
-	for (i = 0; i < i2->arr.len; i++) {
-		u32arr_sub_u32(ret->arr.buf, ret->arr.len, i, i2->arr.buf[i]);
-	}
-
-	return ret;
-}
-
-struct big_int * bi_mul(const struct big_int *i1, const struct big_int *i2)
-{
-	struct big_int *ret;
-	size_t i;
-
-	assert(i1 != NULL);
-	assert(i2 != NULL);
-
-	if (bi_is_zero(i1) || bi_is_zero(i2))
-		return bi_cpy(&bi_zero);
-
-	ret = bi_new_p(MB_MAX(i1->arr.len, i2->arr.len));
-	for (i = 0; i < i2->arr.len; i++) {
-		u32arr_mul_u32(&i1->arr, i2->arr.buf[i], i, &ret->arr);
-	}
-
-	return ret;
-}
-
 /* --- Operator functions modifying first argument --- */
 
-void bi_add_u64_i(struct big_int *i, uint64_t val)
+void bi_add_u64_is(struct big_int *i, uint64_t val, int32_t shift)
 {
 	assert(i != NULL);
 	ensure_capacity(&i->arr, i->arr.len + 1);
-	u32arr_add_u32(i->arr.buf, i->arr.len, val, 0);
+	u32arr_add_u32(i->arr.buf, i->arr.len, val, shift);
 }
 
-void bi_sub_u64_i(struct big_int *i, uint64_t val)
+void bi_sub_u64_is(struct big_int *i, uint64_t val, int32_t shift)
 {
 	int cmp;
 
@@ -579,10 +405,10 @@ void bi_sub_u64_i(struct big_int *i, uint64_t val)
 		return;
 	}
 
-	u32arr_sub_u64(i->arr.buf, i->arr.len, 0, val);
+	u32arr_sub_u64(i->arr.buf, i->arr.len, shift, val);
 }
 
-void bi_mul_u64_i(struct big_int *i, uint64_t val)
+void bi_mul_u64_is(struct big_int *i, uint64_t val, int32_t shift)
 {
 	size_t digits;
 	struct u64_split s;
@@ -597,11 +423,11 @@ void bi_mul_u64_i(struct big_int *i, uint64_t val)
 	digits = i->arr.len;
 	s = split_u64(val);
 	ensure_capacity(&i->arr, i->arr.len + 2);
-	u32arr_mul_u32_i(&i->arr, digits, s.high, 1);
-	u32arr_mul_u32_i(&i->arr, digits, s.low, 0);
+	u32arr_mul_u32_i(&i->arr, digits, s.high, 1 + shift);
+	u32arr_mul_u32_i(&i->arr, digits, s.low, shift);
 }
 
-void bi_add_i(struct big_int *ret, const struct big_int *num)
+void bi_add_is(struct big_int *ret, const struct big_int *num, int32_t shift)
 {
 	size_t i;
 
@@ -610,11 +436,11 @@ void bi_add_i(struct big_int *ret, const struct big_int *num)
 
 	ensure_capacity(&ret->arr, ret->arr.len + 1);
 	for (i = 0; i < num->arr.len; i++) {
-		u32arr_add_u32(ret->arr.buf, ret->arr.len, i, num->arr.buf[i]);
+		u32arr_add_u32(ret->arr.buf, ret->arr.len, i + shift, num->arr.buf[i]);
 	}
 }
 
-void bi_sub_i(struct big_int *ret, const struct big_int *num)
+void bi_sub_is(struct big_int *ret, const struct big_int *num, int32_t shift)
 {
 	size_t i;
 
@@ -622,11 +448,11 @@ void bi_sub_i(struct big_int *ret, const struct big_int *num)
 	assert(num != NULL);
 
 	for (i = 0; i < num->arr.len; i++) {
-		u32arr_sub_u32(ret->arr.buf, ret->arr.len, i, num->arr.buf[i]);
+		u32arr_sub_u32(ret->arr.buf, ret->arr.len, i + shift, num->arr.buf[i]);
 	}
 }
 
-void bi_mul_i(struct big_int *ret, const struct big_int *op)
+void bi_mul_is(struct big_int *ret, const struct big_int *op, int32_t shift)
 {
 	size_t i;
 	size_t j;
@@ -672,9 +498,9 @@ void bi_mul_i(struct big_int *ret, const struct big_int *op)
 			if (!row2_val)
 				continue;
 			p = split_u64((uint64_t)row1_val * (uint64_t)row2_val);
-			u32arr_add_u32(ret->arr.buf, ret->arr.len, i + j + 1, p.high);
+			u32arr_add_u32(ret->arr.buf, ret->arr.len, i + j + 1 + shift, p.high);
 			if (j)
-				u32arr_add_u32(ret->arr.buf, ret->arr.len, i + j, p.low);
+				u32arr_add_u32(ret->arr.buf, ret->arr.len, i + j + shift, p.low);
 			else
 				ret->arr.buf[i] = p.low;
 		}
@@ -770,12 +596,24 @@ static char * tostr_pow4(const struct big_int *num, unsigned radix)
 	return str;
 }
 
+static char * copy_str(const char *str)
+{
+	char *ret;
+	size_t len;
+
+	len = strlen(str);
+	ret = malloc(len);
+	memcpy(ret, str, len);
+
+	return ret;
+}
+
 char * bi_tostr(const struct big_int *num, unsigned radix)
 {
 	assert(num != NULL);
 
 	if (bi_is_zero(num))
-		return strdup("0");
+		return copy_str("0");
 
 	switch (radix) {
 	case 2:
