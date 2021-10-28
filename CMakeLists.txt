@@ -5,7 +5,7 @@ project(MandelbrotGenerator VERSION 1.0)
 find_package(Threads REQUIRED)
 enable_testing()
 
-add_executable(mandelbrot mandelbrot.cpp bmp.c hue.c big_float.c arrshift.c
+add_executable(mandelbrot mandelbrot.cpp bmp.c hue.c arrshift.c
 		big_int.c parse.c)
 target_link_libraries(mandelbrot Threads::Threads)
 if (NOT MSVC)

@@ -80,8 +80,8 @@ int main(void)
 
 	for (i = 0; i < MB_ARR_SIZE(cases); i++) {
 		test_case = &cases[i];
-		op1 = bi_new_from_u32arr(test_case->arr1, test_case->arr1_length);
-		op2 = bi_new_from_u32arr(test_case->arr2, test_case->arr2_length);
+		op1 = bi_new_from_u32arr(test_case->arr1_length * 2, test_case->arr1, test_case->arr1_length);
+		op2 = bi_new_from_u32arr(test_case->arr1_length * 2, test_case->arr2, test_case->arr2_length);
 		res = bi_mul(op1, op2);
 		print_bi(op1);
 		print_bi(op2);
@@ -96,8 +96,8 @@ int main(void)
 		puts("Pass\n");
 	}
 
-	op1 = bi_new_from_u32arr(sqr_arr, MB_ARR_SIZE(sqr_arr));
-	op2 = bi_new_from_u32arr(sqr_arr, MB_ARR_SIZE(sqr_arr));
+	op1 = bi_new_from_u32arr(MB_ARR_SIZE(sqr_arr), sqr_arr, MB_ARR_SIZE(sqr_arr));
+	op2 = bi_new_from_u32arr(MB_ARR_SIZE(sqr_arr), sqr_arr, MB_ARR_SIZE(sqr_arr));
 	print_bi(op1);
 	bi_mul_i(op1, op2);
 	print_bi(op1);
