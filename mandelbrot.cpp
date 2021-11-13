@@ -109,6 +109,11 @@ static unsigned long get_opt_ul(const char *opt, int offset,
 	return ret;
 }
 
+static int sample_in_main_cardiod(struct cdouble c)
+{
+	return 4.0 * cd_magnitude_sqr(cd_add_real(c, 1.0)) - 1.0 < 0;
+}
+
 static unsigned long iterations(struct cdouble c, unsigned long max_attempts)
 {
 	size_t i = 0;
@@ -146,6 +151,7 @@ static struct pixel draw_pixel(struct cdouble sample)
 
 static void * draw_lines(void *data)
 {
+	static struct pixel red = { 0, 0, 255 };
 	struct draw_lines_data *ld = (struct draw_lines_data*)data;
 	struct cdouble sample;	/* Complex number to sample at image coordinates x, y */
 	uint16_t x, y;		/* x,y coordinates of the image */
@@ -154,7 +160,11 @@ static void * draw_lines(void *data)
 		sample.img = ld->step * y + ld->from_y;
 		for (x = 0; x < ld->img->width; x++) {
 			sample.real = ld->step * x + ld->from_x;
-			*bmp_pixel_ref(ld->img, x, y) = draw_pixel(sample);
+			if (sample_in_main_cardiod(sample)) {
+				*bmp_pixel_ref(ld->img, x, y) = red;
+			} else {
+				*bmp_pixel_ref(ld->img, x, y) = draw_pixel(sample);
+			}
 		}
 	}
 

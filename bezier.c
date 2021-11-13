@@ -46,7 +46,6 @@ static struct point sample_bezier(struct bezier *curve, double t)
 	struct point first_lerp[3];
 	struct point second_lerp[2];
 	struct point ret;
-	size_t i;
 
 	first_lerp[0] = lerp_p(curve->cp[0].base, curve->cp[0].control, t);
 	first_lerp[1] = lerp_p(curve->cp[0].control, curve->cp[1].control, t);
@@ -112,7 +111,7 @@ int main(int argc, char **argv)
 	for (i = 0; i < samples; i++) {
 		t = (double)i / (double)(samples - 1);
 		sample = sample_bezier(&curve, t);
-		printf("%.20e %.20e\n", sample.x, sample.y);
+		printf("%.20f %.20f\n", sample.x, sample.y);
 	}
 
 	return 0;

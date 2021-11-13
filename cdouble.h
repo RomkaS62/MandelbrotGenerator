@@ -30,6 +30,16 @@ static inline struct cdouble cd_add(struct cdouble d1, struct cdouble d2)
 	return ret;
 }
 
+static inline struct cdouble cd_add_real(struct cdouble d, double val)
+{
+	struct cdouble ret;
+
+	ret.img = d.img;
+	ret.real = d.real + val;
+
+	return ret;
+}
+
 /*
  * (a + bi) * (a + bi)
  *      = (a * a + a * bi) + (abi + b^2 * i^2)
@@ -47,9 +57,19 @@ static inline struct cdouble cd_sqr(struct cdouble d)
 	return ret;
 }
 
+static inline struct cdouble cd_pow4(struct cdouble d)
+{
+	return cd_sqr(cd_sqr(d));
+}
+
 static inline double cd_magnitude_sqr(struct cdouble d)
 {
 	return d.real * d.real + d.img * d.img;
+}
+
+static inline double cd_magnitude_pow4(struct cdouble d)
+{
+	return cd_magnitude_sqr(cd_sqr(d));
 }
 
 #ifdef __cplusplus

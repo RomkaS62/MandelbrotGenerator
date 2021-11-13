@@ -26,6 +26,9 @@ if (NOT MSVC)
 	target_link_libraries(tst_big_int_mul m)
 endif ()
 
+add_executable(bfexpr bfexpr.c big_fixed.c big_int.c parse.c)
+target_link_libraries(bfexpr gramas m)
+
 add_executable(bezier bezier.c)
 
 install(TARGETS bezier)

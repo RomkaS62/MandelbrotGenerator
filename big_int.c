@@ -157,7 +157,7 @@ static void parse_pow2(
 	size_t rem_digits;	/* Remaining digits that do not fill a uint32_t. */
 	size_t u32s;
 	unsigned digit_bits;
-	int ch;	
+	int ch;
 	char u32_char_block[16];
 
 	digits = mb_num_of_digits(str, radix);
