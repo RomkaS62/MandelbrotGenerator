@@ -10,34 +10,21 @@
 #include "bmp.h"
 #include "hue.h"
 #include "cdouble.h"
+#include "iterate.h"
+#include "mbthreading.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <fcntl.h>
 #endif
 
-static uint16_t width;
-static uint16_t height;
-static double radius;
-static struct cdouble origin;
-static const char *file;
-static unsigned long attempts;
-static uint16_t threads;
-static uint16_t supersample_level;
-
-struct draw_lines_data {
-	struct bmp_img *img;
-	uint16_t ln_from;
-	uint16_t ln_to;
-	double from_x;
-	double from_y;
-	double step;
-
-	draw_lines_data(struct bmp_img *img, uint16_t ln_from, uint16_t ln_to,
-			double from_x, double from_y, double step)
-		:img(img), ln_from(ln_from), ln_to(ln_to), from_x(from_x),
-		from_y(from_y), step(step)
-	{}
-};
+uint16_t width = 240;
+uint16_t height = 320;
+double radius = 1.5;
+struct cdouble origin = { 0.0, 0.0 };
+const char *file = "bitmap.bmp";
+unsigned long attempts = 1000;
+uint16_t threads = 4;
+uint16_t supersample_level = 0;
 
 static const char * get_opt(const char *opt, int offset, const char *default_val,
 		int argc, char **argv)
@@ -109,68 +96,6 @@ static unsigned long get_opt_ul(const char *opt, int offset,
 	return ret;
 }
 
-static int sample_in_main_cardiod(struct cdouble c)
-{
-	return 4.0 * cd_magnitude_sqr(cd_add_real(c, 1.0)) - 1.0 < 0;
-}
-
-static unsigned long iterations(struct cdouble c, unsigned long max_attempts)
-{
-	size_t i = 0;
-	struct cdouble point = { 0.0, 0.0 };
-
-	while (cd_magnitude_sqr(point) <= 4.0 && i < max_attempts) {
-		point = cd_sqr(point);
-		point = cd_add(point, c);
-		i++;
-	}
-
-	return i;
-}
-
-static struct pixel draw_pixel(struct cdouble sample)
-{
-	struct pixel p;
-	unsigned long itr;
-	double hue;
-
-	itr = iterations(sample, attempts);
-	if (itr < attempts) {
-		hue = sqrt((double)itr / (double)attempts);
-		p.r = hue_r(hue) * 255;
-		p.g = hue_g(hue) * 255;
-		p.b = hue_b(hue) * 255;
-	} else {
-		p.r = 0;
-		p.g = 0;
-		p.b = 0;
-	}
-
-	return p;
-}
-
-static void * draw_lines(void *data)
-{
-	static struct pixel red = { 0, 0, 255 };
-	struct draw_lines_data *ld = (struct draw_lines_data*)data;
-	struct cdouble sample;	/* Complex number to sample at image coordinates x, y */
-	uint16_t x, y;		/* x,y coordinates of the image */
-
-	for (y = ld->ln_from; y < ld->ln_to; y++) {
-		sample.img = ld->step * y + ld->from_y;
-		for (x = 0; x < ld->img->width; x++) {
-			sample.real = ld->step * x + ld->from_x;
-			if (sample_in_main_cardiod(sample)) {
-				*bmp_pixel_ref(ld->img, x, y) = red;
-			} else {
-				*bmp_pixel_ref(ld->img, x, y) = draw_pixel(sample);
-			}
-		}
-	}
-
-	return NULL;
-}
-
 static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 {
 	std::vector<std::unique_ptr<std::thread>> thread_pool;
@@ -189,23 +114,25 @@ static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 	lines_remainder = img->height % lines_per_thread;
 
 	for (i = 0; i < threads - 1; i++) {
-		data.push_back(draw_lines_data(
+		struct draw_lines_data new_data = {
 			img,
 			(uint16_t)(i * lines_per_thread),
 			(uint16_t)((i + 1) * lines_per_thread),
 			org.real - (img->width / 2) * step,
 			org.img - (img->height / 2) * step,
 			step
-		));
+		};
+		data.push_back(draw_lines_data(new_data));
 	}
-	data.push_back(draw_lines_data(
+	struct draw_lines_data new_data = {
 		img,
 		(uint16_t)((threads - 1) * lines_per_thread),
 		(uint16_t)(threads * lines_per_thread + lines_remainder),
 		org.real - (img->width / 2) * step,
 		org.img - (img->height / 2) * step,
 		step
-	));
+	};
+	data.push_back(draw_lines_data(new_data));
 
 	for (i = 0; i < threads; i++) {
 		thread_pool.push_back(std::make_unique<std::thread>(

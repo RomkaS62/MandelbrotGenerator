@@ -52,7 +52,7 @@ static inline struct cdouble cd_sqr(struct cdouble d)
 	struct cdouble ret;
 
 	ret.real = d.real * d.real - d.img * d.img;
-	ret.img = 2 * d.real * d.img;
+	ret.img = 2.0 * d.real * d.img;
 
 	return ret;
 }

@@ -212,7 +212,7 @@ static void log_image_parameters(const struct bmp_img *img)
 	printf("File length: %"PRIu32"\n", file_size(img));
 }
 #else
-#define log_image_parameters(img, row_length, row_padding, pixel_offset, bmp_file_size)
+#define log_image_parameters(img)
 #endif
 
 static void write_header(const struct bmp_img *img, FILE *f)
