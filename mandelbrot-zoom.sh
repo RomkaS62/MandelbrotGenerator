@@ -28,7 +28,7 @@ help="
                         breakfast.
 --directory             Directory to put the frames into.
 --threads -t            Number of threads to use for rendering.
---frames -f             Number of frames to rendef.
+--frames -f             Number of frames to render.
 --help                  Prints this help text and exits.
 "
 
