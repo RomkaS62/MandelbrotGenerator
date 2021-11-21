@@ -71,9 +71,9 @@ double hue_b(double hue)
 		{ 1.0, 0.0 }
 	};
 
-	if (hue >= 0.0 && hue <= 1.0 / 6.0) {
+	if (hue >= 0.0 && hue <= 1.0 / 3.0) {
 		return 0.0;
-	} else if (hue > 1.0 / 6.0 && hue < 0.5) {
+	} else if (hue > 1.0 / 3.0 && hue < 0.5) {
 		return interpolate(&rising_edge, hue);
 	} else if (hue >= 0.5 && hue <= 5.0 / 6.0) {
 		return 1.0;
