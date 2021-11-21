@@ -5,18 +5,16 @@ project(MandelbrotGenerator VERSION 1.0)
 find_package(Threads REQUIRED)
 enable_testing()
 
-if (GNU)
-	if (DEFINED GCC_FAST_MATH)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
-	endif ()
+if (DEFINED GCC_FAST_MATH)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
+endif ()
 
-	if (DEFINED GCC_ARCH)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=${GCC_ARCH}")
-	endif()
-endif()
+if (DEFINED GCC_ARCH)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=${GCC_ARCH}")
+endif ()
 
-add_executable(mandelbrot mandelbrot.cpp bmp.c hue.c arrshift.c iterate.c
-		big_int.c parse.c)
+add_executable(mandelbrot mandelbrot.cpp bmp.c hue.c arrshift.c iterated.c
+	iteratef.c big_int.c parse.c)
 target_link_libraries(mandelbrot Threads::Threads)
 if (NOT MSVC)
 	target_link_libraries(mandelbrot m)

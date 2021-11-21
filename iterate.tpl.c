@@ -2,14 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "math.h"
-#include "iterate.h"
 #include "bmp.h"
 #include "hue.h"
 #include "mbthreading.h"
 
 extern unsigned long attempts;
 
-static void matrix_x_fs(double *ret, size_t rows, size_t cols, double from, double step)
+static void matrix_x_fs(CPLX_T *ret, size_t rows, size_t cols, CPLX_T from, CPLX_T step)
 {
 	size_t i;
 
@@ -20,7 +19,7 @@ static void matrix_x_fs(double *ret, size_t rows, size_t cols, double from, doub
 		memcpy(ret + i * cols, ret, cols * sizeof(*ret));
 }
 
-static void d_arr_set(double *arr, const size_t length, const double val)
+static void d_arr_set(CPLX_T *arr, const size_t length, const CPLX_T val)
 {
 	size_t i;
 
@@ -28,9 +27,9 @@ static void d_arr_set(double *arr, const size_t length, const double val)
 		arr[i] = val;
 }
 
-static void matrix_y_fs(double *ret, size_t rows, size_t cols, double from, double step)
+static void matrix_y_fs(CPLX_T *ret, size_t rows, size_t cols, CPLX_T from, CPLX_T step)
 {
-	double val;
+	CPLX_T val;
 	size_t y;
 	size_t row_offset;
 
@@ -42,17 +41,17 @@ static void matrix_y_fs(double *ret, size_t rows, size_t cols, double from, doub
 }
 
 struct iteration_s {
-	double *real;
-	double *img;
-	double *real_ret;
-	double *img_ret;
+	CPLX_T *real;
+	CPLX_T *img;
+	CPLX_T *real_ret;
+	CPLX_T *img_ret;
 	unsigned *iterations;
 	size_t length;
 };
 
-static double * alloc_double(size_t length)
+static CPLX_T * alloc_double(size_t length)
 {
-	return (double *) malloc(length * sizeof(double));
+	return (CPLX_T *) malloc(length * sizeof(CPLX_T));
 }
 
 static unsigned * calloc_unsigned(size_t length)
@@ -90,7 +89,7 @@ struct pallette_s {
 static void pallette_init(struct pallette_s *p, size_t length)
 {
 	size_t i;
-	double ratio;
+	CPLX_T ratio;
 
 	p->length = length;
 	p->r = calloc(sizeof(p->r[0]), length);
@@ -99,10 +98,10 @@ static void pallette_init(struct pallette_s *p, size_t length)
 	p->a = calloc(sizeof(p->a[0]), length);
 
 	for (i = 0; i < length; i++) {
-		ratio = (double)i / (double)length;
-		p->r[i] = hue_r(ratio) * 255.0;
-		p->g[i] = hue_g(ratio) * 255.0;
-		p->b[i] = hue_b(ratio) * 255.0;
+		ratio = (CPLX_T)i / (CPLX_T)length;
+		p->r[i] = hue_r(ratio) * (CPLX_T)255;
+		p->g[i] = hue_g(ratio) * (CPLX_T)255;
+		p->b[i] = hue_b(ratio) * (CPLX_T)255;
 		p->a[i] = 255;
 	}
 }
@@ -156,64 +155,35 @@ static void draw_pixels(
 }
 
 static const size_t block_size = 512;
-static const double max_distance = 4.0;
+static const CPLX_T max_distance = (CPLX_T)4.0;
 
-static double square(const double val)
+static CPLX_T square(const CPLX_T val)
 {
 	return val * val;
 }
 
-static inline double magnitude_sqr(const double x, const double y)
+static inline CPLX_T magnitude_sqr(const CPLX_T x, const CPLX_T y)
 {
 	return square(x) + square(y);
 }
 
-static inline int distance_check(const double x, const double y)
+static inline int distance_check(const CPLX_T x, const CPLX_T y)
 {
 	return magnitude_sqr(x, y) < max_distance && !isnan(x) && !isnan(y) && !isnan(x * y);
 }
 
-static void iterate_block(
-		const double *restrict real,
-		const double *restrict img,
-		double *restrict real_ret,
-		double *restrict img_ret,
-		unsigned *restrict iterations)
-{
-	size_t i;
-	size_t j;
-	double tmpr;
-	double tmpi;
-	int within_bounds;
-
-	memcpy(real_ret, real, sizeof(real[0]) * block_size);
-	memcpy(img_ret, img, sizeof(img[0]) * block_size);
-	for (i = 0; i < attempts; i++) {
-		for (j = 0; j < block_size; j++) {
-			tmpr = real_ret[j];
-			tmpi = img_ret[j];
-			within_bounds = distance_check(tmpr, tmpi);
-			iterations[j] += 1 * within_bounds;
-			real_ret[j] = (square(tmpr) - square(tmpi) + real[j]) * within_bounds
-				+ tmpr * !within_bounds;
-			img_ret[j] = (2.0 * tmpr * tmpi + img[j]) * within_bounds
-				+ tmpi * !within_bounds;
-		}
-	}
-}
-
 static void iterate(
-		const double *restrict real,
-		const double *restrict img,
-		double *restrict real_ret,
-		double *restrict img_ret,
+		const CPLX_T *restrict real,
+		const CPLX_T *restrict img,
+		CPLX_T *restrict real_ret,
+		CPLX_T *restrict img_ret,
 		unsigned *restrict iterations,
 		const size_t length)
 {
 	size_t i;
 	size_t j;
-	double tmpr;
-	double tmpi;
+	CPLX_T tmpr;
+	CPLX_T tmpi;
 	int within_bounds;
 
 	memcpy(real_ret, real, sizeof(real[0]) * block_size);
@@ -226,7 +196,7 @@ static void iterate(
 			iterations[j] += 1 * within_bounds;
 			real_ret[j] = (square(tmpr) - square(tmpi) + real[j]) * within_bounds
 				+ tmpr * !within_bounds;
-			img_ret[j] = (2.0 * tmpr * tmpi + img[j]) * within_bounds
+			img_ret[j] = (2.0f * tmpr * tmpi + img[j]) * within_bounds
 				+ tmpi * !within_bounds;
 		}
 	}
@@ -246,9 +216,9 @@ static void cmpl_buf_sqr_add_sd(struct iteration_s *itr)
 
 	for (i = 0; i < blocks; i++) {
 		offset = i * block_size;
-		iterate_block(itr->real + offset, itr->img + offset,
+		iterate(itr->real + offset, itr->img + offset,
 				itr->real_ret + offset, itr->img_ret + offset,
-				itr->iterations + offset);
+				itr->iterations + offset, block_size);
 	}
 
 	iterate(itr->real + remainder_offset, itr->img + remainder_offset,
@@ -256,14 +226,14 @@ static void cmpl_buf_sqr_add_sd(struct iteration_s *itr)
 			itr->iterations + remainder_offset, remainder);
 }
 
-void * draw_lines(void *data)
+void * DRAW_FUNC_NAME(void *data)
 {
 	struct draw_lines_data *ld = (struct draw_lines_data*)data;
 	struct iteration_s itr;
 	struct pallette_s pallette;
 	size_t cols;
 	size_t rows;
-	double from_y;
+	CPLX_T from_y;
 
 	cols = ld->img->width;
 	rows = ld->ln_to - ld->ln_from;
