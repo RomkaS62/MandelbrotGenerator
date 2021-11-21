@@ -18,6 +18,9 @@
 #include <fcntl.h>
 #endif
 
+extern "C"
+{
+
 uint16_t width = 240;
 uint16_t height = 320;
 double radius = 1.5;
@@ -26,6 +29,9 @@ const char *file = "bitmap.bmp";
 unsigned long attempts = 1000;
 uint16_t threads = 4;
 uint16_t supersample_level = 0;
+size_t pallette_length = 1000;
+
+}
 
 static const double float_to_doble_cutoff = 1e-3;
 
@@ -172,6 +178,7 @@ int main(int argc, char **argv)
 	attempts = get_opt_ul("-a", 1, 1000, argc, argv);
 	threads = get_opt_u16("-t", 1, 4, argc, argv);
 	supersample_level = get_opt_u16("-s", 1, 0, argc, argv);
+	pallette_length = get_opt_ul("-p", 1, 1000, argc, argv);
 	if (!threads)
 		threads = 1;
 	file = get_opt("-f", 1, "bitmap.bmp", argc, argv);

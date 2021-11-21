@@ -7,6 +7,7 @@
 #include "mbthreading.h"
 
 extern unsigned long attempts;
+extern size_t pallette_length;
 
 static void matrix_x_fs(CPLX_T *ret, size_t rows, size_t cols, CPLX_T from, CPLX_T step)
 {
@@ -240,7 +241,7 @@ void * DRAW_FUNC_NAME(void *data)
 	from_y = ld->from_y + ld->step * ld->ln_from;
 
 	itr_init(&itr, rows * cols);
-	pallette_init(&pallette, attempts / 3);
+	pallette_init(&pallette, pallette_length);
 
 	matrix_x_fs(itr.real, rows, cols, ld->from_x, ld->step);
 	matrix_y_fs(itr.img, rows, cols, from_y, ld->step);
