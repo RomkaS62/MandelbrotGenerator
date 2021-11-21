@@ -27,7 +27,7 @@ unsigned long attempts = 1000;
 uint16_t threads = 4;
 uint16_t supersample_level = 0;
 
-static const double float_to_doble_cutoff = 1e-5;
+static const double float_to_doble_cutoff = 1e-3;
 
 static const char * get_opt(const char *opt, int offset, const char *default_val,
 		int argc, char **argv)

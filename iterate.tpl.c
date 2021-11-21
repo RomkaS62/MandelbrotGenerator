@@ -186,8 +186,8 @@ static void iterate(
 	CPLX_T tmpi;
 	int within_bounds;
 
-	memcpy(real_ret, real, sizeof(real[0]) * block_size);
-	memcpy(img_ret, img, sizeof(img[0]) * block_size);
+	memcpy(real_ret, real, sizeof(real[0]) * length);
+	memcpy(img_ret, img, sizeof(img[0]) * length);
 	for (i = 0; i < attempts; i++) {
 		for (j = 0; j < length; j++) {
 			tmpr = real_ret[j];
@@ -212,7 +212,7 @@ static void cmpl_buf_sqr_add_sd(struct iteration_s *itr)
 
 	blocks = itr->length / block_size;
 	remainder = itr->length % block_size;
-	remainder_offset = itr->length - blocks * block_size;
+	remainder_offset = block_size * blocks;
 
 	for (i = 0; i < blocks; i++) {
 		offset = i * block_size;
