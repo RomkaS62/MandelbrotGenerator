@@ -1,6 +1,8 @@
 #ifndef MANDELBROT_THREADING_H
 #define MANDELBROT_THREADING_H
 
+#include "bmp.h"
+
 struct draw_lines_data {
 	struct bmp_img *img;
 	uint16_t ln_from;

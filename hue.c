@@ -1,5 +1,6 @@
 #include "geometry.h"
 #include "hue.h"
+#include "global.h"
 
 static double interpolate(const struct line *l, double x)
 {
@@ -10,7 +11,7 @@ static double interpolate(const struct line *l, double x)
 }
 
 
-double hue_r(double hue)
+static double hue_r(double hue)
 {
 	static const struct line falling_edge = {
 		{ 1.0 / 6.0, 1.0 },
@@ -36,7 +37,7 @@ double hue_r(double hue)
 	return 1.0;
 }
 
-double hue_g(double hue)
+static double hue_g(double hue)
 {
 	static const struct line rising_edge = {
 		{ 0.0, 0.0},
@@ -60,7 +61,7 @@ double hue_g(double hue)
 	return 0.0;
 }
 
-double hue_b(double hue)
+static double hue_b(double hue)
 {
 	static const struct line rising_edge = {
 		{ 1.0 / 3.0, 0.0 },
@@ -83,3 +84,57 @@ double hue_b(double hue)
 
 	return 0.0;
 }
+
+void pallette_init(struct pallette_s *p, size_t length)
+{
+	size_t i;
+	float ratio;
+
+	p->length = length;
+	p->r = calloc(sizeof(p->r[0]), length);
+	p->g = calloc(sizeof(p->g[0]), length);
+	p->b = calloc(sizeof(p->b[0]), length);
+	p->a = calloc(sizeof(p->a[0]), length);
+
+	for (i = 0; i < length; i++) {
+		ratio = (float)i / (float)length;
+		p->r[i] = hue_r(ratio) * (float)255;
+		p->g[i] = hue_g(ratio) * (float)255;
+		p->b[i] = hue_b(ratio) * (float)255;
+		p->a[i] = 255;
+	}
+}
+
+void pallette_free(struct pallette_s *p)
+{
+	free(p->r);
+	free(p->g);
+	free(p->b);
+	free(p->a);
+}
+
+void draw_pixels(
+		const uint16_t ln_from,
+		const uint16_t ln_to,
+		const unsigned *restrict iterations,
+		struct bmp_img *img,
+		const struct pallette_s *pallette)
+{
+	size_t line;
+	size_t col;
+	size_t index;
+	unsigned itr;
+	int is_black;
+
+	for (line = ln_from; line < ln_to; line++) {
+		for (col = 0; col < img->width; col++) {
+			index = (line - ln_from) * img->width + col;
+			itr = iterations[index];
+			is_black = itr >= attempts;
+			bmp_set_r(img, col, line, pallette_red(pallette, itr) * !is_black);
+			bmp_set_g(img, col, line, pallette_green(pallette, itr) * !is_black);
+			bmp_set_b(img, col, line, pallette_blue(pallette, itr) * !is_black);
+		}
+	}
+}
+

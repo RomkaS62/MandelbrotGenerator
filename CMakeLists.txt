@@ -14,7 +14,7 @@ if (DEFINED GCC_ARCH)
 endif ()
 
 add_executable(mandelbrot mandelbrot.cpp bmp.c hue.c arrshift.c iterated.c
-	iteratef.c big_int.c parse.c)
+	iteratef.c fixed.c big_int.c parse.c global.c)
 target_link_libraries(mandelbrot Threads::Threads)
 if (NOT MSVC)
 	target_link_libraries(mandelbrot m)

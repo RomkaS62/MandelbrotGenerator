@@ -13,25 +13,12 @@
 #include "iteratef.h"
 #include "iterated.h"
 #include "mbthreading.h"
+#include "fixed.h"
+#include "global.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <fcntl.h>
 #endif
-
-extern "C"
-{
-
-uint16_t width = 240;
-uint16_t height = 320;
-double radius = 1.5;
-struct cdouble origin = { 0.0, 0.0 };
-const char *file = "bitmap.bmp";
-unsigned long attempts = 1000;
-uint16_t threads = 4;
-uint16_t supersample_level = 0;
-size_t pallette_length = 1000;
-
-}
 
 static const double float_to_doble_cutoff = 1e-3;
 
@@ -50,6 +37,19 @@ static const char * get_opt(const char *opt, int offset, const char *default_val
 	}
 
 	return default_val;
+}
+
+static int opt_is_set(const char *opt, int is_val, int is_not_val, int argc,
+		char **argv)
+{
+	int i;
+
+	for (i = 0; i < argc; i++) {
+		if (strcmp(argv[i], opt) == 0)
+			return is_val;
+	}
+
+	return is_not_val;
 }
 
 static uint16_t get_opt_u16(const char *opt, int offset, uint16_t default_value,
@@ -147,10 +147,14 @@ static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 		thread_pool.push_back(std::make_unique<std::thread>(
 			[] (struct draw_lines_data *ld) -> void
 			{
-				if (radius < float_to_doble_cutoff)
-					draw_lines_d(ld);
-				else
-					draw_lines_f(ld);
+				if (use_fixed) {
+					draw_lines_u64f4(ld);
+				} else {
+					if (radius < float_to_doble_cutoff)
+						draw_lines_d(ld);
+					else
+						draw_lines_f(ld);
+				}
 			}, &data[i]
 		));
 	}
@@ -170,6 +174,7 @@ int main(int argc, char **argv)
 	_set_fmode(_O_BINARY);
 #endif
 
+	use_fixed = opt_is_set("--fixed", 1, 0, argc, argv);
 	width = get_opt_u16("-w", 1, 640, argc, argv);
 	height = get_opt_u16("-h", 1, 480, argc, argv);
 	origin.real = get_opt_d("-x", 1, 0.0, argc, argv);
@@ -192,10 +197,14 @@ int main(int argc, char **argv)
 	printf("Base width: %" PRIu16 "\n", width * (1 << supersample_level));
 	printf("Base height: %" PRIu16 "\n", height * (1 << supersample_level));
 	printf("Threads: %" PRIu16 "\n", threads);
-	if (radius < float_to_doble_cutoff) {
-		puts("Using double precision arihmetic");
+	if (use_fixed) {
+		printf("Using %i-bit precision fixed point arithmetic.", fixed_precision);
 	} else {
-		puts("Using single precision arithmetic");
+		if (radius < float_to_doble_cutoff) {
+			puts("Using double precision arihmetic");
+		} else {
+			puts("Using single precision arithmetic");
+		}
 	}
 	img = bmp_new(width * (1 << supersample_level), height * (1 << supersample_level));
 	draw_mandelbrot(img, origin, radius);

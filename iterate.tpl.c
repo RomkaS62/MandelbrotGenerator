@@ -5,9 +5,7 @@
 #include "bmp.h"
 #include "hue.h"
 #include "mbthreading.h"
-
-extern unsigned long attempts;
-extern size_t pallette_length;
+#include "global.h"
 
 static void matrix_x_fs(CPLX_T *ret, size_t rows, size_t cols, CPLX_T from, CPLX_T step)
 {
@@ -77,82 +75,6 @@ static void itr_free(struct iteration_s *itr)
 	free(itr->real_ret);
 	free(itr->img_ret);
 	free(itr->iterations);
-}
-
-struct pallette_s {
-	unsigned char *r;
-	unsigned char *g;
-	unsigned char *b;
-	unsigned char *a;
-	size_t length;
-};
-
-static void pallette_init(struct pallette_s *p, size_t length)
-{
-	size_t i;
-	CPLX_T ratio;
-
-	p->length = length;
-	p->r = calloc(sizeof(p->r[0]), length);
-	p->g = calloc(sizeof(p->g[0]), length);
-	p->b = calloc(sizeof(p->b[0]), length);
-	p->a = calloc(sizeof(p->a[0]), length);
-
-	for (i = 0; i < length; i++) {
-		ratio = (CPLX_T)i / (CPLX_T)length;
-		p->r[i] = hue_r(ratio) * (CPLX_T)255;
-		p->g[i] = hue_g(ratio) * (CPLX_T)255;
-		p->b[i] = hue_b(ratio) * (CPLX_T)255;
-		p->a[i] = 255;
-	}
-}
-
-static void pallette_free(struct pallette_s *p)
-{
-	free(p->r);
-	free(p->g);
-	free(p->b);
-	free(p->a);
-}
-
-static inline unsigned char pallette_red(const struct pallette_s *pallette, size_t idx)
-{
-	return pallette->r[idx % pallette->length];
-}
-
-static inline unsigned char pallette_green(const struct pallette_s *pallette, size_t idx)
-{
-	return pallette->g[idx % pallette->length];
-}
-
-static inline unsigned char pallette_blue(const struct pallette_s *pallette, size_t idx)
-{
-	return pallette->b[idx % pallette->length];
-}
-
-static void draw_pixels(
-		const uint16_t ln_from,
-		const uint16_t ln_to,
-		const unsigned *iterations,
-		struct bmp_img *img,
-		const struct pallette_s *pallette)
-{
-	size_t line;
-	size_t col;
-	size_t index;
-	unsigned itr;
-	int is_black;
-
-	for (line = ln_from; line < ln_to; line++) {
-		for (col = 0; col < img->width; col++) {
-			index = (line - ln_from) * img->width + col;
-			itr = iterations[index];
-			is_black = itr >= attempts;
-			bmp_set_r(img, col, line, pallette_red(pallette, itr) * !is_black);
-			bmp_set_g(img, col, line, pallette_green(pallette, itr) * !is_black);
-			bmp_set_b(img, col, line, pallette_blue(pallette, itr) * !is_black);
-		}
-	}
 }
 
 static const size_t block_size = 512;
