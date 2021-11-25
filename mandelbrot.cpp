@@ -198,7 +198,7 @@ int main(int argc, char **argv)
 	printf("Base height: %" PRIu16 "\n", height * (1 << supersample_level));
 	printf("Threads: %" PRIu16 "\n", threads);
 	if (use_fixed) {
-		printf("Using %i-bit precision fixed point arithmetic.", fixed_precision);
+		printf("Using %i-bit precision fixed point arithmetic.\n", fixed_precision);
 	} else {
 		if (radius < float_to_doble_cutoff) {
 			puts("Using double precision arihmetic");
