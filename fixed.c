@@ -13,17 +13,6 @@ static uint64_t fsquare(const uint64_t a, const int fracbits)
 	return u64fmul(a, a, fracbits);
 }
 
-static uint64_t fpabs(const uint64_t a)
-{
-	int is_negative = (a & (1ULL << 63)) != 0;
-
-	if (is_negative) {
-		return (uint64_t)-((int64_t)a);
-	} else {
-		return a;
-	}
-}
-
 static int abs_f_lt_u64(const uint64_t a, const uint64_t b, const int fracbits)
 {
 	return fpabs(a) < (b << fracbits);
