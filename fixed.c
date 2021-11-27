@@ -8,14 +8,61 @@
 #include "global.h"
 #include "hue.h"
 
-static uint64_t fsquare(const uint64_t a, const int fracbits)
+static uint64_t u64_pow10(unsigned pow)
 {
-	return u64fmul(a, a, fracbits);
+	uint64_t ret = 10;
+
+	if (pow == 0)
+		return 0;
+
+	while (pow --> 0)
+		ret *= 10;
+
+	return ret;
 }
 
-static int abs_f_lt_u64(const uint64_t a, const uint64_t b, const int fracbits)
+void u64f_print(const uint64_t num, const int precision)
 {
-	return fpabs(a) < (b << fracbits);
+	static const int dec_digits = 5;
+
+	struct u128 fracpart_128;
+	uint64_t absnum = fpabs(num);
+	uint64_t intpart = (uint64_t)labs(absnum >> precision);
+	uint64_t fracpart = absnum & ~(~0UL << precision);
+	int sign = fpneg(num);
+
+	fracpart_128 = u64mul(fracpart, u64_pow10(dec_digits));
+	fracpart_128 = u128_shr(fracpart_128, precision);
+
+	if (sign) {
+		printf("-%"PRIu64, intpart);
+	} else {
+		printf("%"PRIu64, intpart);
+	}
+
+	printf(".%0*"PRIu64, dec_digits, fracpart_128.low);
+}
+
+static void fcmplx_print(const uint64_t real, const uint64_t img, const int precision)
+{
+	u64f_print(real, precision);
+	fputs(" + i", stdout);
+	u64f_print(img, precision);
+}
+
+static void newline(void)
+{
+	fputc('\n', stdout);
+}
+
+static int distance_check(const uint64_t real, const uint64_t img, const int precision)
+{
+	int ret;
+
+	ret = (fsquare(real, precision) + fsquare(img, precision))
+		< (4UL << precision);
+
+	return ret;
 }
 
 static void fcmplx_iterate(
@@ -23,7 +70,7 @@ static void fcmplx_iterate(
 		const uint64_t *restrict img,
 		uint64_t *restrict real_ret,
 		uint64_t *restrict img_ret,
-		const int fracbits,
+		const int precision,
 		unsigned *restrict iterations,
 		const size_t length,
 		const unsigned long attempts)
@@ -34,7 +81,7 @@ static void fcmplx_iterate(
 	uint64_t tmpi;
 	uint64_t sqrr;
 	uint64_t sqri;
-	uint64_t sqrsum;
+	uint64_t sqrdiff;
 	int within_bounds;
 
 	memcpy(real_ret, real, length * sizeof(real[0]));
@@ -44,15 +91,14 @@ static void fcmplx_iterate(
 		for (j = 0; j < length; j++) {
 			tmpr = real_ret[j];
 			tmpi = img_ret[j];
-			within_bounds = abs_f_lt_u64(tmpr, 2, fracbits)
-					&& abs_f_lt_u64(tmpi, 2, fracbits);
-			iterations += tmpr < (2ULL << fracbits) || tmpi < (2ULL << fracbits);
-			sqrr = fsquare(tmpr, fracbits);
-			sqri = fsquare(tmpi, fracbits);
-			sqrsum = sqrr + sqri;
-			real_ret[j] = sqrsum * within_bounds + tmpr * !within_bounds;
-			img_ret[j] = (u64fmul(tmpr, tmpi, fracbits) << 1) * within_bounds
-					+ tmpi * !within_bounds;
+			if (!distance_check(tmpr, tmpi, precision))
+				continue;
+			iterations[j] += 1;
+			sqrr = fsquare(tmpr, precision);
+			sqri = fsquare(tmpi, precision);
+			sqrdiff = sqrr - sqri;
+			real_ret[j] = sqrdiff + real[j];
+			img_ret[j] = (u64fmul(tmpr, tmpi, precision) << 1) + img[j];
 		}
 	}
 }
@@ -85,17 +131,20 @@ static void fcmplx_linspace_y(uint64_t *restrict arr, uint64_t from, uint64_t st
 	}
 }
 
-static uint64_t dtou64(const double val, const int fracbits)
+static uint64_t dtou64(const double val, const int precision)
 {
 	uint64_t ret;
 
-	ret = (uint64_t)(fabs(val) * (1 << fracbits));
-	ret = (~ret + 1) * (val < 0.0) + ret * (val >= 0.0);
+	ret = (uint64_t)(fabs(val) * (1UL << precision));
+	if (val < 0.0)
+		ret = u64inv(ret);
+
 
 	return ret;
 }
 
 #define ALLOC_ARRAY(_arr, _len) malloc((_len) * sizeof((_arr)[0]))
+#define CALLOC_ARRAY(_arr, _len) calloc((_len), sizeof((_arr)[0]))
 
 void draw_lines_u64f4(void *data)
 {
@@ -107,14 +156,14 @@ void draw_lines_u64f4(void *data)
 	size_t length = rows * cols;
 
 	uint64_t from_x = dtou64(ld->from_x, fixed_precision);
-	uint64_t from_y = dtou64(ld->from_y, fixed_precision);
+	uint64_t from_y = dtou64(ld->from_y + ld->step * ld->ln_from, fixed_precision);
 	uint64_t step = dtou64(ld->step, fixed_precision);
 
 	uint64_t *real = ALLOC_ARRAY(real, length);
 	uint64_t *img = ALLOC_ARRAY(img, length);
 	uint64_t *real_ret = ALLOC_ARRAY(real_ret, length);
 	uint64_t *img_ret = ALLOC_ARRAY(img_ret, length);
-	unsigned *iterations = ALLOC_ARRAY(iterations, length);
+	unsigned *iterations = CALLOC_ARRAY(iterations, length);
 
 	pallette_init(&pallette, pallette_length);
 	fcmplx_linspace_x(real, from_x, step, rows, cols);

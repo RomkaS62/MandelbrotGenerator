@@ -21,7 +21,7 @@ extern uint16_t supersample_level;
 extern size_t pallette_length;
 extern int use_fixed;
 
-static const int fixed_precision = 58;
+static const int fixed_precision = 60;
 
 #ifdef __cplusplus
 }

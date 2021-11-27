@@ -1,6 +1,7 @@
 #ifndef MANDELBROT_FIXED_16_48_H
 #define MANDELBROT_FIXED_16_48_H
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
 
@@ -13,17 +14,27 @@ static inline uint64_t bits(const int count)
 	return ~(~0ULL << count);
 }
 
+static inline uint64_t u64inv(const uint64_t x)
+{
+	return ~x + 1;
+}
+
 static inline uint64_t u64range(const uint64_t num, const int offset, const int count)
 {
 	return (num >> offset) & bits(count);
 }
 
-static inline uint64_t u64ffromi64(int64_t num, int fracbits)
+static inline int u64f_intbits(const int precision)
+{
+	return 64 - precision;
+}
+
+static inline uint64_t u64ffromi64(const int64_t num, const int precision)
 {
 	if (num >= 0)
-		return (uint64_t)(num << fracbits);
+		return (uint64_t)(num << precision);
 	else
-		return ~(((uint64_t)labs(num) << fracbits)) + 1;
+		return u64inv(labs(num)) << precision;
 }
 
 static inline int fpneg(const uint64_t a)
@@ -31,21 +42,33 @@ static inline int fpneg(const uint64_t a)
 	return (a & (1ULL << 63)) != 0;
 }
 
+/* Returns maximum signed integer value represantable with given precision. */
+static inline int64_t u64f_int64_max(const int precision)
+{
+	return INT64_MAX >> precision;
+}
+
+/* Returns minimum signed integer value representable with given precision. */
+static inline int64_t u64f_int64_min(const int precision)
+{
+	return INT64_MIN >> precision;
+}
+
 static inline uint64_t fpabs(const uint64_t a)
 {
 	if (fpneg(a)) {
-		return ~a + 1;
+		return u64inv(a);
 	} else {
 		return a;
 	}
 }
 
-static inline int64_t u64ftoi64(uint64_t num, int fracbits)
+static inline int64_t u64ftoi64(const uint64_t num, const int precision)
 {
 	if (fpneg(num))
-		return -(int64_t)(fpabs(num) >> fracbits);
+		return -(int64_t)(fpabs(num) >> precision);
 	else
-		return (int64_t)num >> fracbits;
+		return (int64_t)num >> precision;
 }
 
 struct u128 {
@@ -53,13 +76,23 @@ struct u128 {
 	uint64_t high;
 };
 
+static inline struct u128 u128_shr(const struct u128 num, const int shift)
+{
+	struct u128 ret;
+
+	ret.high = num.high >> shift;
+	ret.low = num.low >> shift;
+	ret.low |= (num.high & ~(~0UL << (64 - shift))) << (64 - shift);
+
+	return ret;
+}
+
 /*
  *             ah   al
  *             bh   bl
  *           ---------
  *           ahbl albl
- *           albh
- *      ahbh
+ *      albh albh
  *  ------------------
  *  rhh  rhl  rlh  rll
  * */
@@ -91,17 +124,39 @@ static inline struct u128 u64mul(const uint64_t a, const uint64_t b)
 	return ret;
 }
 
-static inline uint64_t u64fmul(uint64_t a, uint64_t b, int fracbits)
+/*
+ *          a . b  c
+ *          d . e  f
+ *         ---------
+ *          fa fb fc
+ *       ea fb fc
+ *    da fb fc
+ *   ---------------
+ *  |   .     |
+ * */
+static inline uint64_t u64fmul(const uint64_t a, const uint64_t b, const int precision)
 {
+	uint64_t ret;
 	struct u128 prod;
 
-	prod = u64mul(a, b);
-	prod.low += 1UL << (fracbits - 1);
-	prod.high += prod.low < (1UL << (fracbits - 1));
+	prod = u64mul(fpabs(a), fpabs(b));
+	prod.low += 1UL << (precision - 1);
+	prod.high += prod.low < (1UL << (precision - 1));
 
-	return prod.high << (64 - fracbits) | (prod.low >> fracbits);
+	ret = prod.high << (64 - precision) | (prod.low >> precision);
+	if (fpneg(a) ^ fpneg(b)) {
+		ret = u64inv(ret);
+	}
+
+	return ret;
 }
 
+static inline uint64_t fsquare(const uint64_t a, const int precision)
+{
+	return u64fmul(fpabs(a), fpabs(a), precision);
+}
+
+void u64f_print(const uint64_t num, const int precision);
 void draw_lines_u64f4(void *data);
 
 #if defined(__cplusplus)
