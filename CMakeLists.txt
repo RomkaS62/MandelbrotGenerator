@@ -34,6 +34,15 @@ if (NOT MSVC)
 	target_link_libraries(tst_big_int_mul m)
 endif ()
 
+add_executable(tst_fixed_mul tst_fixed_mul.c)
+add_test(tst_fixed_mul tst_fixed_mul)
+
+add_executable(tst_fixed_sqr tst_fixed_sqr.c)
+add_test(tst_fixed_sqr tst_fixed_sqr)
+
+add_executable(tst_fcmplx_sqr tst_fcmplx_sqr.c)
+add_test(tst_fcmplx_sqr tst_fcmplx_sqr)
+
 add_executable(bezier bezier.c)
 
 install(TARGETS bezier)
