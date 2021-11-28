@@ -155,9 +155,9 @@ void draw_lines_u64f4(void *data)
 	size_t cols = ld->img->width;
 	size_t length = rows * cols;
 
-	uint64_t from_x = dtou64(ld->from_x, fixed_precision);
-	uint64_t from_y = dtou64(ld->from_y + ld->step * ld->ln_from, fixed_precision);
 	uint64_t step = dtou64(ld->step, fixed_precision);
+	uint64_t from_x = dtou64(ld->from_x, fixed_precision);
+	uint64_t from_y = dtou64(ld->from_y, fixed_precision) + step * ld->ln_from;
 
 	uint64_t *real = ALLOC_ARRAY(real, length);
 	uint64_t *img = ALLOC_ARRAY(img, length);
