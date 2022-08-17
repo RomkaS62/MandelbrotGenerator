@@ -105,6 +105,25 @@ static unsigned long get_opt_ul(const char *opt, int offset,
 	return ret;
 }
 
+static void draw_lines(struct draw_lines_data *ld)
+{
+	if (use_fixed) {
+		draw_lines_u64f4(ld);
+	} else {
+		if (radius < float_to_doble_cutoff)
+			draw_lines_d(ld);
+		else
+			draw_lines_f(ld);
+	}
+}
+
+static void join_all(std::vector<std::unique_ptr<std::thread>> &thread_pool)
+{
+	for (size_t i = 0; i < thread_pool.size(); i++) {
+		thread_pool[i].get()->join();
+	}
+}
+
 static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 {
 	std::vector<std::unique_ptr<std::thread>> thread_pool;
@@ -133,6 +152,7 @@ static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 		};
 		data.push_back(draw_lines_data(new_data));
 	}
+
 	struct draw_lines_data new_data = {
 		img,
 		(uint16_t)((threads - 1) * lines_per_thread),
@@ -141,27 +161,14 @@ static void draw_mandelbrot(struct bmp_img *img, struct cdouble org, double r)
 		org.img - (img->height / 2) * step,
 		step
 	};
+
 	data.push_back(draw_lines_data(new_data));
 
 	for (i = 0; i < threads; i++) {
-		thread_pool.push_back(std::make_unique<std::thread>(
-			[] (struct draw_lines_data *ld) -> void
-			{
-				if (use_fixed) {
-					draw_lines_u64f4(ld);
-				} else {
-					if (radius < float_to_doble_cutoff)
-						draw_lines_d(ld);
-					else
-						draw_lines_f(ld);
-				}
-			}, &data[i]
-		));
+		thread_pool.push_back(std::make_unique<std::thread>(draw_lines , &data[i]));
 	}
 
-	for (i = 0; i < threads; i++) {
-		thread_pool[i].get()->join();
-	}
+	join_all(thread_pool);
 }
 
 int main(int argc, char **argv)
@@ -184,8 +191,11 @@ int main(int argc, char **argv)
 	threads = get_opt_u16("-t", 1, 4, argc, argv);
 	supersample_level = get_opt_u16("-s", 1, 0, argc, argv);
 	pallette_length = get_opt_ul("-p", 1, 1000, argc, argv);
-	if (!threads)
+
+	if (!threads) {
 		threads = 1;
+	}
+
 	file = get_opt("-f", 1, "bitmap.bmp", argc, argv);
 
 	if (!(f = fopen(file, "w"))) {
@@ -209,12 +219,14 @@ int main(int argc, char **argv)
 	img = bmp_new(width * (1 << supersample_level), height * (1 << supersample_level));
 	draw_mandelbrot(img, origin, radius);
 	printf("Rendering finished. Saving to %s\n", file);
+
 	if (supersample_level) {
 		downsampled_img = bmp_downsample(img, supersample_level);
 		bmp_write_f(downsampled_img, f);
 	} else {
 		bmp_write_f(img, f);
 	}
+
 	fclose(f);
 	bmp_delete(img);
 	bmp_delete(downsampled_img);
