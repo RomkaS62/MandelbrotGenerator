@@ -8,53 +8,6 @@
 #include "global.h"
 #include "hue.h"
 
-static uint64_t u64_pow10(unsigned pow)
-{
-	uint64_t ret = 10;
-
-	if (pow == 0)
-		return 0;
-
-	while (pow --> 0)
-		ret *= 10;
-
-	return ret;
-}
-
-void u64f_print(const uint64_t num, const int precision)
-{
-	static const int dec_digits = 5;
-
-	struct u128 fracpart_128;
-	uint64_t absnum = fpabs(num);
-	uint64_t intpart = (uint64_t)labs(absnum >> precision);
-	uint64_t fracpart = absnum & ~(~0UL << precision);
-	int sign = fpneg(num);
-
-	fracpart_128 = u64mul(fracpart, u64_pow10(dec_digits));
-	fracpart_128 = u128_shr(fracpart_128, precision);
-
-	if (sign) {
-		printf("-%"PRIu64, intpart);
-	} else {
-		printf("%"PRIu64, intpart);
-	}
-
-	printf(".%0*"PRIu64, dec_digits, fracpart_128.low);
-}
-
-static void fcmplx_print(const uint64_t real, const uint64_t img, const int precision)
-{
-	u64f_print(real, precision);
-	fputs(" + i", stdout);
-	u64f_print(img, precision);
-}
-
-static void newline(void)
-{
-	fputc('\n', stdout);
-}
-
 static int distance_check(const uint64_t real, const uint64_t img, const int precision)
 {
 	int ret;
@@ -82,7 +35,6 @@ static void fcmplx_iterate(
 	uint64_t sqrr;
 	uint64_t sqri;
 	uint64_t sqrdiff;
-	int within_bounds;
 
 	memcpy(real_ret, real, length * sizeof(real[0]));
 	memcpy(img_ret, img, length * sizeof(img[0]));
