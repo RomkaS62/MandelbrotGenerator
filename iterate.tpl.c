@@ -95,6 +95,36 @@ static inline int distance_check(const CPLX_T x, const CPLX_T y)
 	return magnitude_sqr(x, y) < max_distance && !isnan(x) && !isnan(y) && !isnan(x * y);
 }
 
+#define CHUNK_SIZE (128 / sizeof(CPLX_T))
+static void iterate_chunk(
+		const CPLX_T *restrict real,
+		const CPLX_T *restrict img,
+		CPLX_T *restrict real_ret,
+		CPLX_T *restrict img_ret,
+		unsigned *restrict iterations)
+{
+	size_t i;
+	size_t j;
+	CPLX_T tmpr;
+	CPLX_T tmpi;
+	int within_bounds;
+
+	memcpy(real_ret, real, sizeof(real[0]) * CHUNK_SIZE);
+	memcpy(img_ret, img, sizeof(img[0]) * CHUNK_SIZE);
+	for (i = 0; i < attempts; i++) {
+		for (j = 0; j < CHUNK_SIZE; j++) {
+			tmpr = real_ret[j];
+			tmpi = img_ret[j];
+			within_bounds = distance_check(tmpr, tmpi);
+			iterations[j] += 1 * within_bounds;
+			real_ret[j] = (square(tmpr) - square(tmpi) + real[j]) * within_bounds
+				+ tmpr * !within_bounds;
+			img_ret[j] = (2.0f * tmpr * tmpi + img[j]) * within_bounds
+				+ tmpi * !within_bounds;
+		}
+	}
+}
+
 static void iterate(
 		const CPLX_T *restrict real,
 		const CPLX_T *restrict img,
@@ -127,26 +157,17 @@ static void iterate(
 
 static void cmpl_buf_sqr_add_sd(struct iteration_s *itr)
 {
-	size_t blocks;
-	size_t remainder;
-	size_t remainder_offset;
-	size_t offset;
 	size_t i;
 
-	blocks = itr->length / block_size;
-	remainder = itr->length % block_size;
-	remainder_offset = block_size * blocks;
-
-	for (i = 0; i < blocks; i++) {
-		offset = i * block_size;
-		iterate(itr->real + offset, itr->img + offset,
-				itr->real_ret + offset, itr->img_ret + offset,
-				itr->iterations + offset, block_size);
+	for (i = 0; i + CHUNK_SIZE < itr->length; i += CHUNK_SIZE) {
+		iterate_chunk(itr->real + i, itr->img + i,
+				itr->real_ret + i, itr->img_ret + i,
+				itr->iterations + i);
 	}
 
-	iterate(itr->real + remainder_offset, itr->img + remainder_offset,
-			itr->real_ret + remainder_offset, itr->img_ret + remainder_offset,
-			itr->iterations + remainder_offset, remainder);
+	iterate(itr->real + i, itr->img + i,
+			itr->real_ret + i, itr->img_ret + i,
+			itr->iterations + i, itr->length - i);
 }
 
 void * DRAW_FUNC_NAME(void *data)
