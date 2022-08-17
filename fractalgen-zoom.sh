@@ -13,7 +13,8 @@ imaginary=0.7
 iterations=1000
 threads=4
 
-fixed=
+iterate=
+render=
 
 help="
 --width -w:             Witdth of frames in pixels.
@@ -32,14 +33,13 @@ help="
 --threads -t            Number of threads to use for rendering.
 --frames -f             Number of frames to render.
 --help                  Prints this help text and exits.
+--iterate               Iterator function that will generate samples to render.
+--render                Function that turns samples into pixels.
 "
 
 while [ $# -gt 0 ]
 do
 	case "$1" in
-		--use-fixed)
-			fixed="--fixed"
-			;;
 		--width|-w)
 			shift 1
 			width="$1"
@@ -92,6 +92,14 @@ do
 			echo "$help"
 			exit 0
 			;;
+		--iterate)
+			shift 1
+			iterate="--iterate $1"
+			;;
+		--render)
+			shift 1
+			render="--render $1"
+			;;
 		*)
 			echo "Unrecognised argument \"$1\""
 			exit 1;
@@ -128,7 +136,7 @@ i=0
 
 for radius in `bezier $zoom_bezier $frames | awk '{ print 1 / 10 ** $2 }'`
 do
-	mandelbrot "$fixed" -x "$real" -y "$imaginary" -w "$width" -h "$height" -r "$radius" -a "$iterations" -t "$threads" -s "$multisample" -f "$directory/${i}_frame.bmp" > /dev/null
+	mandelbrot -x "$real" -y "$imaginary" -w "$width" -h "$height" -r "$radius" -a "$iterations" -t "$threads" -s "$multisample" -f "$directory/${i}_frame.bmp" $iterate $render > /dev/null
 	wait
 	echo "$((i + 1)) / $frames"
 	i=$((i+1))

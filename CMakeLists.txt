@@ -31,12 +31,6 @@ if (NOT MSVC)
 	target_link_libraries(bexpr m)
 endif()
 
-add_library("mandelbrot-itr-double" SHARED mandelbrot-itr-double.c)
-add_library("render-rgb" SHARED render-rgb.c)
-
-target_include_directories("mandelbrot-itr-double" PUBLIC "${INCLUDE_DIRS}")
-target_include_directories("render-rgb" PUBLIC "${INCLUDE_DIRS}")
-
 add_executable(tst_arr_shift tst_arr_shift.c arrshift.c)
 add_test(tst_arr_shift tst_arr_shift)
 
@@ -51,9 +45,8 @@ add_test(tst_fcmplx_sqr tst_fcmplx_sqr)
 
 add_executable(bezier bezier.c)
 
+add_subdirectory(plugins)
+
 install(TARGETS bezier)
 install(TARGETS fractalgen)
 install(DIRECTORY include/fractalgen DESTINATION "${CMAKE_INSTALL_PREFIX}/include")
-
-install(TARGETS mandelbrot-itr-double DESTINATION "${PLUGIN_DIR}")
-install(TARGETS render-rgb DESTINATION "${PLUGIN_DIR}")
