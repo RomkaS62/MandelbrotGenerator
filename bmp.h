@@ -28,20 +28,27 @@ enum bmp_error {
 	BMP_ENOHDR
 };
 
+static inline void __bmp_check_coordinates(const struct bmp_img *img, uint16_t x, uint16_t y)
+{
+	if (x > img->width || y > img->height) {
+		fprintf(stderr, "Invalid access at [%" PRIu16 ", %" PRIu16 "] in image of size [%" PRIu16 ", %" PRIu16 "]\n",
+				x, y, img->width, img->height);
+		abort();
+	}
+}
+
 static inline size_t bmp_idx(const struct bmp_img *img, uint16_t x, uint16_t y)
 {
 	size_t ret = img->width * y + x;
 
 #ifndef NDEBUG
-	if (ret > img->width * img->height) {
-		fprintf(stderr, "Invalid access at [%" PRIu16 ", %" PRIu16 "] in image of size [%" PRIu16 ", %" PRIu16 "]\n",
-				x, y, img->width, img->height);
-		abort();
-	}
+	__bmp_check_coordinates(img, x, y);
 #endif
 
 	return ret;
 }
+
+#define BMP_AT(__img, __x, __y) ((__img)->image[(__y) * (__img)->width + (__x)])
 
 static inline struct pixel bmp_pixel(const struct bmp_img *img, uint16_t x, uint16_t y)
 {

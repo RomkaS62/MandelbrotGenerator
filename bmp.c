@@ -87,7 +87,7 @@ static struct pixel average_pixel_area(const struct bmp_img *img,
 	total_pixels = height * width;
 	for (i = x; i < x + width; i++) {
 		for (j = y; j < y + height; j++) {
-			p32_add_p8(&total, bmp_pixel(img, i, j));
+			p32_add_p8(&total, BMP_AT(img, i, j));
 		}
 	}
 
@@ -126,7 +126,7 @@ struct bmp_img * bmp_downsample(const struct bmp_img *img, unsigned level)
 
 	for (x = 0; x < downsampled_img->width; x++) {
 		for (y = 0; y < downsampled_img->height; y++) {
-			*bmp_pixel_ref(downsampled_img, x, y)
+			BMP_AT(downsampled_img, x, y)
 				= average_pixel_area(
 						img,
 						x * divisor,
@@ -184,7 +184,7 @@ static void write_pixel(const struct bmp_img *img, uint16_t x, uint16_t y, char 
 {
 	struct pixel p;
 
-	p = bmp_pixel(img, x, y);
+	p = BMP_AT(img, x, y);
 	(*buf)[0] = p.b;
 	(*buf)[1] = p.g;
 	(*buf)[2] = p.r;
