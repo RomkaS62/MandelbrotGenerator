@@ -19,8 +19,10 @@ static int test_from_to(const int64_t min, const int64_t max, const int precisio
 	uint64_t sqr;
 	int64_t ssqr;
 
-	printf("<%i:%i> %"PRIi64" --- %"PRIi64"\n", intbits, precision, min, max);
 	intbits = 64 - precision;
+
+	printf("<%i:%i> %"PRIi64" --- %"PRIi64"\n", intbits, precision, min, max);
+
 	for (i = min; i < max; i++) {
 		num = u64ffromi64(i, precision);
 		sqr = fsquare(num, precision);
@@ -50,7 +52,7 @@ int main(void)
 	int64_t range = ~(~0ULL << (min_precision / 2));
 
 	for (precision = min_precision; precision <= max_prexision; precision++) {
-		min = u64f_int64_min(precision) >> div_ceil(64 - precision - 1, 2) + 1;
+		min = (u64f_int64_min(precision) >> div_ceil(64 - precision - 1, 2)) + 1;
 		max = min + range;
 		test_from_to(min, max, precision);
 
