@@ -13,6 +13,8 @@ imaginary=0.7
 iterations=1000
 threads=4
 
+fixed=
+
 help="
 --width -w:             Witdth of frames in pixels.
 --height -h             Height of frames in pixels.
@@ -35,6 +37,9 @@ help="
 while [ $# -gt 0 ]
 do
 	case "$1" in
+		--use-fixed)
+			fixed="--fixed"
+			;;
 		--width|-w)
 			shift 1
 			width="$1"
@@ -123,7 +128,7 @@ i=0
 
 for radius in `bezier $zoom_bezier $frames | awk '{ print 1 / 10 ** $2 }'`
 do
-	mandelbrot -x "$real" -y "$imaginary" -w "$width" -h "$height" -r "$radius" -a "$iterations" -t "$threads" -s "$multisample" -f "$directory/${i}_frame.bmp" > /dev/null
+	mandelbrot "$fixed" -x "$real" -y "$imaginary" -w "$width" -h "$height" -r "$radius" -a "$iterations" -t "$threads" -s "$multisample" -f "$directory/${i}_frame.bmp" > /dev/null
 	wait
 	echo "$((i + 1)) / $frames"
 	i=$((i+1))
