@@ -131,9 +131,9 @@ void draw_pixels(
 			index = (line - ln_from) * img->width + col;
 			itr = iterations[index];
 			is_black = itr >= attempts;
-			bmp_set_r(img, col, line, pallette_red(pallette, itr) * !is_black);
-			bmp_set_g(img, col, line, pallette_green(pallette, itr) * !is_black);
-			bmp_set_b(img, col, line, pallette_blue(pallette, itr) * !is_black);
+			BMP_AT(img, col, line).r = pallette_red(pallette, itr) * !is_black;
+			BMP_AT(img, col, line).g = pallette_green(pallette, itr) * !is_black;
+			BMP_AT(img, col, line).b = pallette_blue(pallette, itr) * !is_black;
 		}
 	}
 }
