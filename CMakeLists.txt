@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(MandelbrotGenerator VERSION 1.0)
+project(fractalgen VERSION 1.0)
 
 find_package(Threads REQUIRED)
 enable_testing()
+
+set(PLUGIN_DIR "${CMAKE_INSTALL_PREFIX}/lib/fractalgen")
 
 if (DEFINED GCC_FAST_MATH)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
@@ -13,17 +15,27 @@ if (DEFINED GCC_ARCH)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=${GCC_ARCH}")
 endif ()
 
-add_executable(mandelbrot mandelbrot.cpp bmp.c hue.c arrshift.c iterated.c
-	iteratef.c fixed.c big_int.c parse.c global.c)
-target_link_libraries(mandelbrot Threads::Threads)
+set(INCLUDE_DIRS "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/include")
+
+add_executable(fractalgen fractalgen.cpp bmp.c parse.c global.c)
+target_link_libraries(fractalgen Threads::Threads dl)
+target_include_directories(fractalgen PRIVATE "${INCLUDE_DIRS}")
+
 if (NOT MSVC)
-	target_link_libraries(mandelbrot m)
+	target_link_libraries(fractalgen m)
 endif ()
 
 add_executable(bexpr bexpr.c big_int.c parse.c)
+
 if (NOT MSVC)
 	target_link_libraries(bexpr m)
 endif()
+
+add_library("mandelbrot-itr-double" SHARED mandelbrot-itr-double.c)
+add_library("render-rgb" SHARED render-rgb.c)
+
+target_include_directories("mandelbrot-itr-double" PUBLIC "${INCLUDE_DIRS}")
+target_include_directories("render-rgb" PUBLIC "${INCLUDE_DIRS}")
 
 add_executable(tst_arr_shift tst_arr_shift.c arrshift.c)
 add_test(tst_arr_shift tst_arr_shift)
@@ -40,4 +52,8 @@ add_test(tst_fcmplx_sqr tst_fcmplx_sqr)
 add_executable(bezier bezier.c)
 
 install(TARGETS bezier)
-install(TARGETS mandelbrot)
+install(TARGETS fractalgen)
+install(DIRECTORY include/fractalgen DESTINATION "${CMAKE_INSTALL_PREFIX}/include")
+
+install(TARGETS mandelbrot-itr-double DESTINATION "${PLUGIN_DIR}")
+install(TARGETS render-rgb DESTINATION "${PLUGIN_DIR}")

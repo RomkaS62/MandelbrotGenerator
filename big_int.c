@@ -167,10 +167,13 @@ static void parse_pow2(
 	digit_bits = 32 / blk_size;
 
 	u32s = u32_blocks + !!rem_digits;
-	if (u32s < size)
+
+	if (u32s < size) {
 		ret->len = size;
-	else
+	} else {
 		ret->len = u32s;
+	}
+
 	ret->buf = calloc(ret->len, sizeof(ret->buf[0]));
 
 	/* Strings being parsed here are big-endian, but the underlying array

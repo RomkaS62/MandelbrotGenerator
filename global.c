@@ -15,8 +15,6 @@ const char *file = "bitmap.bmp";
 unsigned long attempts = 1000;
 uint16_t threads = 4;
 uint16_t supersample_level = 0;
-size_t pallette_length = 1000;
-int use_fixed = 0;
 
 #ifdef __cplusplus
 }
