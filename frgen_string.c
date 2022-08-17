@@ -23,7 +23,7 @@ char * strn_copy(const char *str, long length)
 		return NULL;
 	}
 
-	ret = (char *)malloc(length);
+	ret = malloc(length);
 	memcpy(ret, str, length);
 
 	return ret;
@@ -36,7 +36,7 @@ char * str_copy(const char *str)
 	size_t i;
 
 	length = strlen(str) + 1;
-	ret = (char *)malloc(length);
+	ret = malloc(length);
 
 	for (i = 0; i < length; i++) {
 		ret[i] = str[i];
