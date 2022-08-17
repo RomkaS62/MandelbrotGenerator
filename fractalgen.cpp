@@ -17,8 +17,12 @@
 #include "cdouble.h"
 #include "fixed.h"
 #include "global.h"
+#include "frgen_string.h"
 
 #include "fractalgen/plugin.h"
+#include "fractalgen/param_set.h"
+
+#include <gramas/dynarray.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <fcntl.h>
@@ -111,14 +115,15 @@ struct draw_lines_data_s {
 	struct iteration_spec_s spec;
 	unsigned * iterations;
 	struct pixel *img;
+	const struct param_set_s *params;
 	iterate_fn iterate;
 	render_fn render;
 };
 
 static void draw_lines(struct draw_lines_data_s *data)
 {
-	data->iterate(&data->spec, data->iterations);
-	data->render(&data->spec, data->iterations, data->img);
+	data->iterate(&data->spec, data->iterations, data->params);
+	data->render(&data->spec, data->iterations, data->img, data->params);
 }
 
 static void join_all(std::vector<std::unique_ptr<std::thread>> &thread_pool)
@@ -129,7 +134,7 @@ static void join_all(std::vector<std::unique_ptr<std::thread>> &thread_pool)
 }
 
 static void draw_fractal(struct bmp_img *img, struct cdouble org, double r,
-	iterate_fn iterate, render_fn render)
+	iterate_fn iterate, render_fn render, const struct param_set_s *params)
 {
 	std::vector<std::unique_ptr<std::thread>> thread_pool;
 	std::vector<struct draw_lines_data_s> data;
@@ -164,6 +169,7 @@ static void draw_fractal(struct bmp_img *img, struct cdouble org, double r,
 
 		new_data.iterations = itrbuf + i * lines_per_thread * img->width;
 		new_data.img = img->image + i * lines_per_thread * img->width;
+		new_data.params = params;
 		new_data.iterate = iterate;
 		new_data.render = render;
 
@@ -178,6 +184,7 @@ static void draw_fractal(struct bmp_img *img, struct cdouble org, double r,
 	new_data.spec.step = step;
 
 	new_data.iterations = itrbuf + i * lines_per_thread * img->width;
+	new_data.params = params;
 	new_data.img = img->image + i * lines_per_thread * img->width;
 	new_data.iterate = iterate;
 	new_data.render = render;
@@ -274,6 +281,43 @@ static void load_plugins()
 	globfree(&g);
 }
 
+static void gather_params(const int argc, const char **argv, struct param_set_s *set)
+{
+	struct gr_dynarray params;
+	struct value_s value;
+	char *endptr;
+	long eq_idx;
+	int i;
+
+	buf_init(&params, 1, sizeof(struct value_s));
+
+	for (i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "-D") == 0) {
+			eq_idx = str_idxof(argv[i], '=');
+
+			if (eq_idx < 0) {
+				value.type = VALUE_NONE;
+				value.name = str_copy(argv[i] + 2);
+			} else {
+				value.name = strn_copy(argv[i] + 2, eq_idx - 1);
+
+				value.val.d = strtod(argv[i], &endptr);
+
+				if (*endptr) {
+					value.type = VALUE_STR;
+					value.val.str = str_copy(argv[i] + eq_idx);
+				} else {
+					value.type = VALUE_DOUBLE;
+				}
+			}
+		}
+	}
+
+	buf_trim(&params);
+	set->values = (struct value_s *)params.buf;
+	set->length = (int)params.used;
+}
+
 int main(int argc, char **argv)
 {
 	struct bmp_img *img = NULL;
@@ -285,6 +329,7 @@ int main(int argc, char **argv)
 	render_fn render_func = NULL;
 	int list_funcs = 0;
 	size_t i;
+	struct param_set_s params;
 
 	load_plugins();
 
@@ -303,6 +348,8 @@ int main(int argc, char **argv)
 	iterate_plugin_name = get_opt("--iterate", 1, "mandelbrot-double", argc, argv);
 	render_plugin_name = get_opt("--render", 1, "render-rgb", argc, argv);
 	list_funcs = get_opt("--list", 0, NULL, argc, argv) != NULL;
+
+	gather_params(argc, (const char **)argv, &params);
 
 	if (list_funcs) {
 		puts("Iteration functions:");
@@ -339,7 +386,7 @@ int main(int argc, char **argv)
 	printf("Base height: %" PRIu16 "\n", height * (1 << supersample_level));
 	printf("Threads: %" PRIu16 "\n", threads);
 	img = bmp_new(width * (1 << supersample_level), height * (1 << supersample_level));
-	draw_fractal(img, origin, radius, itr_func, render_func);
+	draw_fractal(img, origin, radius, itr_func, render_func, &params);
 	printf("Rendering finished. Saving to %s\n", file);
 
 	if (supersample_level) {
@@ -352,6 +399,12 @@ int main(int argc, char **argv)
 	fclose(f);
 	bmp_delete(img);
 	bmp_delete(downsampled_img);
+
+	for (i = 0; (int)i < params.length; i++) {
+		if (params.values[i].type == VALUE_STR) {
+			free(params.values[i].val.str);
+		}
+	}
 
 	return 0;
 }

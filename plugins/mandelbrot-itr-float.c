@@ -5,7 +5,7 @@
 #include "mandelbrot-itr.h"
 #include "fractalgen/plugin.h"
 
-static void matrix_x_fs(double * restrict ret, size_t rows, size_t cols, double from, double step)
+static void matrix_x_fs(float * restrict ret, size_t rows, size_t cols, float from, float step)
 {
 	size_t i;
 
@@ -16,7 +16,7 @@ static void matrix_x_fs(double * restrict ret, size_t rows, size_t cols, double 
 		memcpy(ret + i * cols, ret, cols * sizeof(*ret));
 }
 
-static void d_arr_set(double * restrict arr, const size_t length, const double val)
+static void d_arr_set(float * restrict arr, const size_t length, const float val)
 {
 	size_t i;
 
@@ -24,9 +24,9 @@ static void d_arr_set(double * restrict arr, const size_t length, const double v
 		arr[i] = val;
 }
 
-static void matrix_y_fs(double * restrict ret, size_t rows, size_t cols, double from, double step)
+static void matrix_y_fs(float * restrict ret, size_t rows, size_t cols, float from, float step)
 {
-	double val;
+	float val;
 	size_t y;
 	size_t row_offset;
 
@@ -37,36 +37,36 @@ static void matrix_y_fs(double * restrict ret, size_t rows, size_t cols, double 
 	}
 }
 
-static const double max_distance = (double)4.0;
+static const float max_distance = (float)4.0;
 
-static double square(const double val)
+static float square(const float val)
 {
 	return val * val;
 }
 
-static inline double magnitude_sqr(const double x, const double y)
+static inline float magnitude_sqr(const float x, const float y)
 {
 	return square(x) + square(y);
 }
 
-static inline int distance_check(const double x, const double y)
+static inline int distance_check(const float x, const float y)
 {
 	return magnitude_sqr(x, y) < max_distance && !isnan(x) && !isnan(y) && !isnan(x * y);
 }
 
-#define CHUNK_SIZE (128 / sizeof(double))
+#define CHUNK_SIZE (128 / sizeof(float))
 static void iterate_chunk(
-		const double *restrict real,
-		const double *restrict img,
-		double *restrict real_ret,
-		double *restrict img_ret,
+		const float *restrict real,
+		const float *restrict img,
+		float *restrict real_ret,
+		float *restrict img_ret,
 		unsigned *restrict iterations,
 		unsigned iteration_count)
 {
 	size_t i;
 	size_t j;
-	double tmpr;
-	double tmpi;
+	float tmpr;
+	float tmpi;
 	int within_bounds;
 
 	memcpy(real_ret, real, sizeof(real[0]) * CHUNK_SIZE);
@@ -89,18 +89,18 @@ static void iterate_chunk(
 }
 
 static void iterate(
-		const double *restrict real,
-		const double *restrict img,
-		double *restrict real_ret,
-		double *restrict img_ret,
+		const float *restrict real,
+		const float *restrict img,
+		float *restrict real_ret,
+		float *restrict img_ret,
 		unsigned *restrict iterations,
 		unsigned iteration_count,
 		const size_t length)
 {
 	size_t i;
 	size_t j;
-	double tmpr;
-	double tmpi;
+	float tmpr;
+	float tmpi;
 	int within_bounds;
 
 	memcpy(real_ret, real, sizeof(real[0]) * length);
@@ -127,11 +127,11 @@ static void iterate_mandelbrot_d(
 	unsigned * restrict iterations,
 	const struct param_set_s *params)
 {
-	double *buf;
-	double *real;
-	double *img;
-	double *real_ret;
-	double *img_ret;
+	float *buf;
+	float *real;
+	float *img;
+	float *real_ret;
+	float *img_ret;
 	size_t buf_len;
 	size_t i;
 
@@ -158,7 +158,7 @@ static void iterate_mandelbrot_d(
 }
 
 static const struct iterator_func_s itr_funcs[] = {
-	{ "mandelbrot-double", iterate_mandelbrot_d }
+	{ "mandelbrot-float", iterate_mandelbrot_d }
 };
 
 #define ITR_FUNC_COUNT (sizeof(itr_funcs) / sizeof(itr_funcs[0]))

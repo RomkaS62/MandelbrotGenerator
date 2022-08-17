@@ -17,9 +17,11 @@ endif ()
 
 set(INCLUDE_DIRS "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/include")
 
-add_executable(fractalgen fractalgen.cpp bmp.c parse.c global.c)
-target_link_libraries(fractalgen Threads::Threads dl)
-target_include_directories(fractalgen PRIVATE "${INCLUDE_DIRS}")
+add_subdirectory(libfractalgen)
+
+add_executable(frgen fractalgen.cpp bmp.c parse.c global.c frgen_string.c)
+target_link_libraries(frgen Threads::Threads dl gramas fractalgen)
+target_include_directories(frgen PRIVATE "${INCLUDE_DIRS}")
 
 if (NOT MSVC)
 	target_link_libraries(fractalgen m)

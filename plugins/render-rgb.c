@@ -149,7 +149,8 @@ static void pallette_free(struct pallette_s *p)
 static void draw_pixels(
 		const struct iteration_spec_s *spec,
 		unsigned * restrict iterations,
-		struct pixel *img)
+		struct pixel *img,
+		const struct param_set_s *set)
 {
 	struct pallette_s pallette;
 	size_t line;

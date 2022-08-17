@@ -2,6 +2,7 @@
 #define MANDELBROT_FRACTAL_ITERATOR_H
 
 #include "bmp.h"
+#include "fractalgen/param_set.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,7 +19,8 @@ struct iteration_spec_s {
 
 typedef void (*iterate_fn)(
 	const struct iteration_spec_s *spec,
-	unsigned * restrict iterations);
+	unsigned * restrict iterations,
+	const struct param_set_s *params);
 
 struct iterator_func_s {
 	const char *name;
@@ -28,7 +30,8 @@ struct iterator_func_s {
 typedef void (*render_fn)(
 	const struct iteration_spec_s *spec,
 	unsigned * restrict iterations,
-	struct pixel *img);
+	struct pixel *img,
+	const struct param_set_s *params);
 
 struct render_func_s {
 	const char *name;
