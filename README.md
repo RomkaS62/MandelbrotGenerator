@@ -39,3 +39,7 @@ $ fractalgen -x 0 -y 0 -r 1.5 -f image.bml -w 1920 -h 1080 --iterate mandelbrot-
 	*	-s: Supersample level. Uses 2^n more pixels to render the final image.  I recomment against using more than than 2.
 	*	--iterate: Function to iterate. Defaults to 'mandelbrot-double'.
 	*	--render: Name of the function that will convert samples from iterate into RGB pixels. Defaults to 'render-rgb'.
+
+## Plugin: How to?
+
+Write a shared library that exports a 'const struct fractal\_iterator\_s iterators'.

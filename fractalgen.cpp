@@ -22,6 +22,8 @@
 #include "fractalgen/plugin.h"
 #include "fractalgen/param_set.h"
 
+#include "debug.h"
+
 #include <gramas/dynarray.h>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -261,20 +263,29 @@ static void load_plugins()
 	}
 
 	for (i = 0; i < g.gl_pathc; i++) {
-		if ((lib = dlopen(g.gl_pathv[i], RTLD_NOW)) != NULL) {
-			iterator = (struct fractal_iterator_s *)dlsym(lib, "iterators");
+		dbg_printf("Trying to load %s...\n", g.gl_pathv[i]);
 
-			if (iterator == NULL) {
-				dlclose(lib);
-			}
+		if ((lib = dlopen(g.gl_pathv[i], RTLD_NOW)) == NULL) {
+			dbg_printf("[dlerror(): %s]Failed to open file %s\n",
+				dlerror(), g.gl_pathv[i]);
+			continue;
+		}
 
-			for (j = 0; j < iterator->iterate_func_count; j++) {
-				iterators.push_back(&iterator->iterate_funcs[j]);
-			}
+		iterator = (struct fractal_iterator_s *)dlsym(lib, "iterators");
 
-			for (j = 0; j < iterator->render_func_count; j++) {
-				renderers.push_back(&iterator->render_funcs[j]);
-			}
+		if (iterator == NULL) {
+			dbg_printf("%s does not contain symbol iterators\n", g.gl_pathv[i]);
+			dlclose(lib);
+		}
+
+		for (j = 0; j < iterator->iterate_func_count; j++) {
+			dbg_printf("Loaded %s\n", iterator->iterate_funcs[j].name);
+			iterators.push_back(&iterator->iterate_funcs[j]);
+		}
+
+		for (j = 0; j < iterator->render_func_count; j++) {
+			dbg_printf("Loaded %s\n", iterator->render_funcs[j].name);
+			renderers.push_back(&iterator->render_funcs[j]);
 		}
 	}
 
@@ -292,24 +303,26 @@ static void gather_params(const int argc, const char **argv, struct param_set_s 
 	buf_init(&params, 1, sizeof(struct value_s));
 
 	for (i = 0; i < argc; i++) {
-		if (strcmp(argv[i], "-D") == 0) {
+		if (str_starts_with(argv[i], "-D")) {
 			eq_idx = str_idxof(argv[i], '=');
 
 			if (eq_idx < 0) {
 				value.type = VALUE_NONE;
 				value.name = str_copy(argv[i] + 2);
 			} else {
-				value.name = strn_copy(argv[i] + 2, eq_idx - 1);
+				value.name = strn_copy(argv[i] + 2, eq_idx - 2);
 
-				value.val.d = strtod(argv[i], &endptr);
+				value.val.d = strtod(argv[i] + eq_idx + 1, &endptr);
 
 				if (*endptr) {
 					value.type = VALUE_STR;
-					value.val.str = str_copy(argv[i] + eq_idx);
+					value.val.str = str_copy(argv[i] + eq_idx + 1);
 				} else {
 					value.type = VALUE_DOUBLE;
 				}
 			}
+
+			buf_append(&params, &value);
 		}
 	}
 

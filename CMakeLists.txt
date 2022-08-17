@@ -50,5 +50,5 @@ add_executable(bezier bezier.c)
 add_subdirectory(plugins)
 
 install(TARGETS bezier)
-install(TARGETS fractalgen)
+install(TARGETS frgen)
 install(DIRECTORY include/fractalgen DESTINATION "${CMAKE_INSTALL_PREFIX}/include")

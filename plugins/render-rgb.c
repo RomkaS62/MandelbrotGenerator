@@ -118,10 +118,41 @@ static inline unsigned char pallette_blue(const struct pallette_s *pallette, siz
 	return pallette->b[idx % pallette->length];
 }
 
-static void pallette_init(struct pallette_s *p, size_t length)
+static float clamp_f(float val, float min, float max)
+{
+	if (val < min) {
+		val = min;
+	}
+
+	if (val > max) {
+		val = max;
+	}
+
+	return val;
+}
+
+static void swap_f(float *a, float *b)
+{
+	float tmp;
+
+	tmp = *a;
+	*a = *b;
+	*b = tmp;
+}
+
+static void pallette_init(struct pallette_s *p, size_t length, float from, float to)
 {
 	size_t i;
 	float ratio;
+	float multiplier;
+
+	multiplier = to - from;
+	from = clamp_f(from, 0.0f, 1.0f);
+	to = clamp_f(to, 0.0f, 1.0f);
+
+	if (from > to) {
+		swap_f(&from, &to);
+	}
 
 	p->length = length;
 	p->r = calloc(sizeof(p->r[0]), length);
@@ -130,7 +161,7 @@ static void pallette_init(struct pallette_s *p, size_t length)
 	p->a = calloc(sizeof(p->a[0]), length);
 
 	for (i = 0; i < length; i++) {
-		ratio = (float)i / (float)length;
+		ratio = from + ((float)i / (float)length) * multiplier;
 		p->r[i] = hue_r(ratio) * (float)255;
 		p->g[i] = hue_g(ratio) * (float)255;
 		p->b[i] = hue_b(ratio) * (float)255;
@@ -158,8 +189,15 @@ static void draw_pixels(
 	size_t index;
 	unsigned itr;
 	int is_black;
+	unsigned pallette_length;
+	float hue_from;
+	float hue_to;
 
-	pallette_init(&pallette, spec->iterations);
+	pallette_length = (unsigned)param_set_get_double_d(set, "p", spec->iterations);
+	hue_from = (float)param_set_get_double_d(set, "huefrom", 0.0);
+	hue_to = (float)param_set_get_double_d(set, "hueto", 1.0);
+
+	pallette_init(&pallette, pallette_length, hue_from, hue_to);
 
 	for (line = 0; line < spec->rows; line++) {
 		for (col = 0; col < spec->cols; col++) {

@@ -23,8 +23,9 @@ char * strn_copy(const char *str, long length)
 		return NULL;
 	}
 
-	ret = malloc(length);
+	ret = malloc(length + 1);
 	memcpy(ret, str, length);
+	ret[length] = '\0';
 
 	return ret;
 }
@@ -43,4 +44,17 @@ char * str_copy(const char *str)
 	}
 
 	return ret;
+}
+
+int str_starts_with(const char *str, const char *prefix)
+{
+	while (*str && *prefix) {
+		if (*str != *prefix) {
+			break;
+		}
+		str++;
+		prefix++;
+	}
+
+	return *prefix == '\0';
 }

@@ -8,6 +8,11 @@ target_include_directories(mandelbrot-itr-float PUBLIC "${INCLUDE_DIRS}")
 target_link_libraries(mandelbrot-itr-float fractalgen)
 install(TARGETS mandelbrot-itr-float DESTINATION "${PLUGIN_DIR}")
 
+add_library(julia-quadratic-float SHARED julia-quadratic-float.c)
+target_include_directories(julia-quadratic-float PUBLIC "${INCLUDE_DIRS}")
+target_link_libraries(julia-quadratic-float fractalgen)
+install(TARGETS julia-quadratic-float DESTINATION "${PLUGIN_DIR}")
+
 add_library(render-rgb SHARED render-rgb.c)
 target_include_directories(render-rgb PUBLIC "${INCLUDE_DIRS}")
 target_link_libraries(render-rgb fractalgen)
