@@ -3,6 +3,8 @@
 #include "fractalgen/plugin.h"
 #include "render-rgb.h"
 
+#include "debug.h"
+
 struct point {
 	double x;
 	double y;
@@ -140,6 +142,33 @@ static void swap_f(float *a, float *b)
 	*b = tmp;
 }
 
+#ifndef NDEBUG
+static void dump_pallette(const struct pallette_s *p)
+{
+	size_t pallete_idx;
+	size_t dump_size;
+	size_t i;
+
+	dump_size = (p->length > 80) ? 80 : p->length;
+
+	putchar('[');
+
+	for (i = 0; i < dump_size; i++) {
+		pallete_idx = (i * p->length) / dump_size;
+		printf("\e[48;2;%u;%u;%um \e[0m",
+			p->r[pallete_idx],
+			p->g[pallete_idx],
+			p->b[pallete_idx]
+		);
+	}
+
+	putchar(']');
+	putchar('\n');
+}
+#else
+#define dump_pallette(__p)
+#endif
+
 static void pallette_init(struct pallette_s *p, size_t length, float from, float to)
 {
 	size_t i;
@@ -193,11 +222,16 @@ static void draw_pixels(
 	float hue_from;
 	float hue_to;
 
-	pallette_length = (unsigned)param_set_get_double_d(set, "p", spec->iterations);
-	hue_from = (float)param_set_get_double_d(set, "huefrom", 0.0);
-	hue_to = (float)param_set_get_double_d(set, "hueto", 1.0);
+	pallette_length = (unsigned)param_set_get_double_d(set, "pallette-length", spec->iterations);
+	hue_from = (float)param_set_get_double_d(set, "hue-from", 0.0);
+	hue_to = (float)param_set_get_double_d(set, "hue-to", 1.0);
+
+	dbg_printf("Drawing pixels with pallette of size %u with hue from %f to %f\n",
+		pallette_length, hue_from, hue_to);
 
 	pallette_init(&pallette, pallette_length, hue_from, hue_to);
+
+	dump_pallette(&pallette);
 
 	for (line = 0; line < spec->rows; line++) {
 		for (col = 0; col < spec->cols; col++) {

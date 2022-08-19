@@ -7,12 +7,18 @@ enable_testing()
 
 set(PLUGIN_DIR "${CMAKE_INSTALL_PREFIX}/lib/fractalgen")
 
-if (DEFINED GCC_FAST_MATH)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
-endif ()
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+	if (DEFINED FAST_MATH)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math")
+	endif ()
 
-if (DEFINED GCC_ARCH)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=${GCC_ARCH}")
+	if (DEFINED ARCH)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=${GCC_ARCH}")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${GCC_ARCH}")
+	endif ()
+
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 endif ()
 
 set(INCLUDE_DIRS "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/include")

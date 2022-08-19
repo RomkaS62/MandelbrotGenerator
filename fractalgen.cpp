@@ -25,6 +25,7 @@
 #include "debug.h"
 
 #include <gramas/dynarray.h>
+#include <gramas/ptr_array.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <fcntl.h>
@@ -135,6 +136,100 @@ static void join_all(std::vector<std::unique_ptr<std::thread>> &thread_pool)
 	}
 }
 
+#ifndef NDEBUG
+
+static unsigned u_max(const unsigned *itr, size_t length)
+{
+	size_t i;
+	unsigned ret;
+
+	ret = itr[0];
+
+	for (i = 1; i < length; i++) {
+		if (ret < itr[i]) {
+			ret = itr[i];
+		}
+	}
+
+	return ret;
+}
+
+static void dump_iterations(const unsigned *itr, size_t rows, size_t cols)
+{
+	size_t i = 0;
+	size_t j = 0;
+	size_t a = 0;
+	size_t b = 0;
+	size_t line = 0;
+	size_t next_line = 0;
+	size_t col;
+	size_t next_col;
+	size_t rows_to_dump;
+	size_t cols_to_dump;
+	unsigned long sum;
+	unsigned max_itr;
+	unsigned char brightness;
+
+	max_itr = u_max(itr, rows * cols);
+
+	rows_to_dump = (rows < 50) ? rows : 50;
+	cols_to_dump = (cols < 160) ? cols : 160;
+
+	while (i < rows_to_dump) {
+		line = (rows * i) / rows_to_dump;
+		next_line = (rows * (i + 1)) / rows_to_dump;
+
+		if (line >= rows) {
+			break;
+		}
+
+		if (next_line >= rows) {
+			next_line = rows - 1;
+		}
+
+		j = 0;
+
+		while (j < cols_to_dump) {
+			col = (j * cols) / cols_to_dump;
+			next_col = ((j + 1) * cols) / cols_to_dump;
+
+			if (col >= cols) {
+				break;
+			}
+
+			if (next_col >= cols) {
+				next_col = cols - 1;
+			}
+
+			sum = 0;
+
+			for (b = line; b <= next_line; b++) {
+				for (a = col; a <= next_col; a++) {
+						sum += itr[b * cols + a];
+				}
+			}
+
+			brightness = (unsigned char)(
+				255UL - ((sum * 255UL)
+					/
+				(((next_line - line + 1) * (next_col - col + 1)))) / max_itr
+			);
+
+			printf("\e[48;2;%u;%u;%um \e[0m", brightness, brightness, brightness);
+
+			j++;
+		}
+
+		putchar('\n');
+
+		i++;
+	}
+}
+
+#else
+#define dump_iterations(__itr, __r, __c)
+#endif
+
 static void draw_fractal(struct bmp_img *img, struct cdouble org, double r,
 	iterate_fn iterate, render_fn render, const struct param_set_s *params)
 {
@@ -199,57 +294,25 @@ static void draw_fractal(struct bmp_img *img, struct cdouble org, double r,
 
 	join_all(thread_pool);
 
+	dump_iterations(itrbuf, img->height, img->width);
+
 	free(itrbuf);
 }
 
-static std::vector<const struct iterator_func_s *> iterators;
-static std::vector<const struct render_func_s *> renderers;
-
-static iterate_fn get_iterate_func(const char *name)
-{
-	size_t i;
-
-	for (i = 0; i < iterators.size(); i++) {
-		if (strcmp(iterators[i]->name, name) == 0) {
-			return iterators[i]->iterate;
-		}
-	}
-
-	fprintf(stderr, "Cannot find iteration function %s\n", name);
-	exit(3);
-
-	return NULL;
-}
-
-static render_fn get_render_func(const char *name)
-{
-	size_t i;
-
-	for (i = 0; i < renderers.size(); i++) {
-		if (strcmp(renderers[i]->name, name) == 0) {
-			return renderers[i]->render;
-		}
-	}
-
-	fprintf(stderr, "Cannot find render function %s\n", name);
-	exit(4);
-
-	return NULL;
-}
+static iterate_fn iterator_func = NULL;
+static render_fn render_func = NULL;
 
 static int on_error(const char *epath, int _errno)
 {
 	return _errno;
 }
 
-static void load_plugins()
+static int for_each_plugin_path(int (*on_path)(const char *path, void *data), void *data)
 {
 	glob_t g;
 	const char *plugin_pattern;
-	void *lib;
-	struct fractal_iterator_s *iterator;
 	size_t i;
-	int j;
+	int ret = 0;
 
 	plugin_pattern = getenv("FRACTALGEN_PLUGIN_PATTERN");
 
@@ -263,33 +326,164 @@ static void load_plugins()
 	}
 
 	for (i = 0; i < g.gl_pathc; i++) {
-		dbg_printf("Trying to load %s...\n", g.gl_pathv[i]);
-
-		if ((lib = dlopen(g.gl_pathv[i], RTLD_NOW)) == NULL) {
-			dbg_printf("[dlerror(): %s]Failed to open file %s\n",
-				dlerror(), g.gl_pathv[i]);
-			continue;
-		}
-
-		iterator = (struct fractal_iterator_s *)dlsym(lib, "iterators");
-
-		if (iterator == NULL) {
-			dbg_printf("%s does not contain symbol iterators\n", g.gl_pathv[i]);
-			dlclose(lib);
-		}
-
-		for (j = 0; j < iterator->iterate_func_count; j++) {
-			dbg_printf("Loaded %s\n", iterator->iterate_funcs[j].name);
-			iterators.push_back(&iterator->iterate_funcs[j]);
-		}
-
-		for (j = 0; j < iterator->render_func_count; j++) {
-			dbg_printf("Loaded %s\n", iterator->render_funcs[j].name);
-			renderers.push_back(&iterator->render_funcs[j]);
+		if ((ret = on_path(g.gl_pathv[i], data))) {
+			break;
 		}
 	}
 
 	globfree(&g);
+
+	return 0;
+}
+
+static struct fractal_iterator_s * get_iterator_from_lib(const char *path, void **lib)
+{
+	struct fractal_iterator_s *iterator;
+
+	if ((*lib = dlopen(path, RTLD_NOW)) == NULL) {
+		dbg_printf("[dlerror(): %s]Failed to open file %s\n",
+			dlerror(), path);
+		return NULL;
+	}
+
+	iterator = (struct fractal_iterator_s *)dlsym(*lib, "iterators");
+
+	if (iterator == NULL) {
+		dbg_printf("%s does not contain symbol iterators\n", path);
+		dlclose(*lib);
+		return NULL;
+	}
+
+	return iterator;
+}
+
+struct load_plugins_args_s {
+	const char *iterator_name;
+	const char *renderer_name;
+	int found_iterator;
+	int found_renderer;
+};
+
+static int __load_plugins_callback(const char *path, void *data)
+{
+	struct load_plugins_args_s *args;
+	struct fractal_iterator_s *iterator;
+	void *lib;
+	int keep_lib;
+	int i;
+
+	(void) data;
+	args = (struct load_plugins_args_s *)data;
+
+	dbg_printf("Trying to load %s...\n", path);
+
+	if ((iterator = get_iterator_from_lib(path, &lib)) == NULL) {
+		return 0;
+	}
+
+	keep_lib = 0;
+
+	if (!args->found_iterator) {
+		for (i = 0; i < iterator->iterate_func_count; i++) {
+			dbg_printf("Loaded %s\n", iterator->iterate_funcs[i].name);
+			if (strcmp(args->iterator_name, iterator->iterate_funcs[i].name) == 0) {
+				keep_lib = 1;
+				args->found_iterator = 1;
+				iterator_func = iterator->iterate_funcs[i].iterate;
+			}
+		}
+	}
+
+	if (!args->found_renderer) {
+		for (i = 0; i < iterator->render_func_count; i++) {
+			dbg_printf("Loaded %s\n", iterator->render_funcs[i].name);
+			if (strcmp(args->renderer_name, iterator->render_funcs[i].name) == 0) {
+				render_func = iterator->render_funcs[i].render;
+				args->found_renderer = 1;
+				keep_lib = 1;
+			}
+		}
+	}
+
+	if (!keep_lib) {
+		dlclose(lib);
+	}
+
+	return 0;
+}
+
+static int load_plugins(const char *iterator_name, const char *renderer_name)
+{
+	struct load_plugins_args_s args = {0};
+
+	args.iterator_name = iterator_name;
+	args.renderer_name = renderer_name;
+
+	for_each_plugin_path(__load_plugins_callback, &args);
+
+	return !args.found_iterator || !args.found_renderer;
+}
+
+struct list_plugins_args_s {
+	struct ptr_array iterators;
+	struct ptr_array renderers;
+};
+
+static int __list_plugins_callback(const char *path, void *data)
+{
+	struct list_plugins_args_s *args;
+	struct fractal_iterator_s *itr;
+	void *lib;
+	int i;
+
+	args = (struct list_plugins_args_s *)data;
+
+	if ((itr = get_iterator_from_lib(path, &lib)) == NULL) {
+		return 0;
+	}
+
+	for (i = 0; i < itr->iterate_func_count; i++) {
+		ptr_arr_add(&args->iterators, str_copy(itr->iterate_funcs[i].name));
+	}
+
+	for (i = 0; i < itr->render_func_count; i++) {
+		ptr_arr_add(&args->renderers, str_copy(itr->render_funcs[i].name));
+	}
+
+	dlclose(lib);
+
+	return 0;
+}
+
+static void list_plugins()
+{
+	struct list_plugins_args_s args;
+	char *name;
+	size_t i;
+
+	ptr_arr_init(&args.iterators, 2);
+	ptr_arr_init(&args.renderers, 2);
+
+	for_each_plugin_path(__list_plugins_callback, &args);
+
+	puts("Fractal functions:");
+
+	for (i = 0; i < args.iterators.used; i++) {
+		name = (char *)args.iterators.arr[i];
+		printf("\t%s\n", name);
+		free(name);
+	}
+
+	puts("\nRender functions");
+
+	for (i = 0; i < args.renderers.used; i++) {
+		name = (char *)args.renderers.arr[i];
+		printf("\t%s\n", name);
+		free(name);
+	}
+
+	ptr_arr_delete(&args.iterators);
+	ptr_arr_delete(&args.renderers);
 }
 
 static void gather_params(const int argc, const char **argv, struct param_set_s *set)
@@ -338,13 +532,9 @@ int main(int argc, char **argv)
 	FILE *f = NULL;
 	const char *iterate_plugin_name = NULL;
 	const char *render_plugin_name = NULL;
-	iterate_fn itr_func = NULL;
-	render_fn render_func = NULL;
 	int list_funcs = 0;
 	size_t i;
 	struct param_set_s params;
-
-	load_plugins();
 
 #if defined(_WIN32) || defined(_WIN64)
 	_set_fmode(_O_BINARY);
@@ -365,21 +555,14 @@ int main(int argc, char **argv)
 	gather_params(argc, (const char **)argv, &params);
 
 	if (list_funcs) {
-		puts("Iteration functions:");
-		for (i = 0; i < iterators.size(); i++) {
-			printf("\t%s\n", iterators[i]->name);
-		}
-
-		puts("\nRender functions:");
-		for (i = 0; i < renderers.size(); i++) {
-			printf("\t%s\n", renderers[i]->name);
-		}
-
+		list_plugins();
 		return 0;
 	}
 
-	itr_func = get_iterate_func(iterate_plugin_name);
-	render_func = get_render_func(render_plugin_name);
+	if (load_plugins(iterate_plugin_name, render_plugin_name)) {
+		fputs("Cannot find required plugins\n", stderr);
+		return 1;
+	}
 
 	printf("Iterating %s\nRendering %s\n", iterate_plugin_name, render_plugin_name);
 
@@ -399,7 +582,7 @@ int main(int argc, char **argv)
 	printf("Base height: %" PRIu16 "\n", height * (1 << supersample_level));
 	printf("Threads: %" PRIu16 "\n", threads);
 	img = bmp_new(width * (1 << supersample_level), height * (1 << supersample_level));
-	draw_fractal(img, origin, radius, itr_func, render_func, &params);
+	draw_fractal(img, origin, radius, iterator_func, render_func, &params);
 	printf("Rendering finished. Saving to %s\n", file);
 
 	if (supersample_level) {

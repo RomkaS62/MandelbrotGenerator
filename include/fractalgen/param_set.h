@@ -26,6 +26,7 @@ struct param_set_s {
 };
 
 int param_set_get_double(const struct param_set_s *set, const char *name, double *val);
+int param_set_value_exists(const struct param_set_s *set, const char *name);
 double param_set_get_double_d(const struct param_set_s *set, const char *name, double default_val);
 
 #ifdef __cplusplus
