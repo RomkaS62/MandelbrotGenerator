@@ -205,7 +205,7 @@ static void dump_iterations(const unsigned *itr, size_t rows, size_t cols)
 
 			for (b = line; b <= next_line; b++) {
 				for (a = col; a <= next_col; a++) {
-						sum += itr[b * cols + a];
+					sum += itr[b * cols + a];
 				}
 			}
 
@@ -261,7 +261,7 @@ static void draw_fractal(struct bmp_img *img, struct cdouble org, double r,
 		new_data.spec.cols = img->width;
 		new_data.spec.iterations = attempts;
 		new_data.spec.from_x = org.real - step * (img->width / 2);
-		new_data.spec.from_y = org.img + step * (img->height / 2) - lines_per_thread * step * i;
+		new_data.spec.from_y = org.img - step * (img->height / 2) + lines_per_thread * step * i;
 		new_data.spec.step = step;
 
 		new_data.iterations = itrbuf + i * lines_per_thread * img->width;
@@ -277,7 +277,7 @@ static void draw_fractal(struct bmp_img *img, struct cdouble org, double r,
 	new_data.spec.cols = img->width;
 	new_data.spec.iterations = attempts;
 	new_data.spec.from_x = org.real - step * (img->width / 2);
-	new_data.spec.from_y = org.img + step * (img->height / 2) - lines_per_thread * step * i;
+	new_data.spec.from_y = org.img - step * (img->height / 2) + lines_per_thread * step * i;
 	new_data.spec.step = step;
 
 	new_data.iterations = itrbuf + i * lines_per_thread * img->width;

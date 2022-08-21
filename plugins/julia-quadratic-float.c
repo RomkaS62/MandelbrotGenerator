@@ -136,7 +136,7 @@ static void iterate_old(
 	img_ret = real_ret + buf_len;
 
 	meshgrid_x(real, spec->rows, spec->cols, spec->from_x, spec->step);
-	meshgrid_y(img, spec->rows, spec->cols, spec->from_y, -spec->step);
+	meshgrid_y(img, spec->rows, spec->cols, spec->from_y, spec->step);
 
 	for (i = 0; i + CHUNK_SIZE < spec->rows; i += CHUNK_SIZE) {
 		julia_iterate_chunk(
@@ -173,7 +173,7 @@ static void blk_meshgrid(struct julia_block_s *block, float fromX, float fromY, 
 	for (i = 0; i < BLOCK_ROWS; i++) {
 		for (j = 0; j < BLOCK_COLS; j++) {
 			block->real[i * BLOCK_COLS + j] = fromX + j * step;
-			block->img[i * BLOCK_COLS + j] = fromY * i * step;
+			block->img[i * BLOCK_COLS + j] = fromY + i * step;
 		}
 	}
 }
@@ -206,7 +206,7 @@ static void iterate_block(struct julia_block_s *block, unsigned iterations,
 		for (j = 0; j < BLOCK_PIXELS; j++) {
 			real_sqr = block->real[j] * block->real[j];
 			img_sqr = block->img[j] * block->img[j];
-			block->iterations[j] += (real_sqr + img_sqr <= 4.0) ? 1 : 0;
+			block->iterations[j] += (real_sqr + img_sqr <= 4.0f) ? 1 : 0;
 			block->img[j] = 2.0f * block->img[j] * block->real[j] + c_img;
 			block->real[j] = real_sqr - img_sqr + c_real;;
 		}

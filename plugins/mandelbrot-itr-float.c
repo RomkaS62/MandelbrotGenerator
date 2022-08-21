@@ -144,7 +144,7 @@ static void iterate_mandelbrot_d(
 	img_ret = real_ret + buf_len;
 
 	matrix_x_fs(real, spec->rows, spec->cols, spec->from_x, spec->step);
-	matrix_y_fs(img, spec->rows, spec->cols, spec->from_y, -spec->step);
+	matrix_y_fs(img, spec->rows, spec->cols, spec->from_y, spec->step);
 
 	for (i = 0; i + CHUNK_SIZE < buf_len; i += CHUNK_SIZE) {
 		iterate_chunk(real + i, img + i, real_ret + i, img_ret + i,
