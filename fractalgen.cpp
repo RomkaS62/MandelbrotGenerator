@@ -154,6 +154,9 @@ static unsigned u_max(const unsigned *itr, size_t length)
 	return ret;
 }
 
+#define DUMP_COLS	(120)
+#define DUMP_ROWS	(35)
+
 static void dump_iterations(const unsigned *itr, size_t rows, size_t cols)
 {
 	size_t i = 0;
@@ -172,8 +175,8 @@ static void dump_iterations(const unsigned *itr, size_t rows, size_t cols)
 
 	max_itr = u_max(itr, rows * cols);
 
-	rows_to_dump = (rows < 50) ? rows : 50;
-	cols_to_dump = (cols < 160) ? cols : 160;
+	rows_to_dump = (rows < DUMP_ROWS) ? rows : DUMP_ROWS;
+	cols_to_dump = (cols < DUMP_COLS) ? cols : DUMP_COLS;
 
 	while (i < rows_to_dump) {
 		line = (rows * i) / rows_to_dump;

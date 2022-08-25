@@ -272,7 +272,7 @@ static void iterate(
 }
 
 static const struct iterator_func_s itr_funcs[] = {
-	{ "julia-quadratic-float", iterate }
+	{ "julia-float", iterate }
 };
 
 #define ITR_FUNC_COUNT	(sizeof(itr_funcs) / sizeof(itr_funcs[0]))

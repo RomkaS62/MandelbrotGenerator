@@ -21,13 +21,13 @@
 	#define malloc(__size) __dbg_malloc(__size, __FILE__, __func__, __LINE__)
 #endif
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(FRGEN_VERBOSE)
 	#define dbg_printf(__fmt, ...) printf("%s:%s():%i:"	\
 		__fmt, __FILE__, __func__, __LINE__, __VA_ARGS__)
 	#define dbg_puts(__str) puts(__str)
 #else
 	#define dbg_printf(__fmt, ...)
-	#define dbb_puts(__str)
+	#define dbg_puts(__str)
 #endif
 
 #endif /* FRACTALGEN_DEBUG_H */

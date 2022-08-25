@@ -184,10 +184,10 @@ static void pallette_init(struct pallette_s *p, size_t length, float from, float
 	}
 
 	p->length = length;
-	p->r = calloc(sizeof(p->r[0]), length);
-	p->g = calloc(sizeof(p->g[0]), length);
-	p->b = calloc(sizeof(p->b[0]), length);
-	p->a = calloc(sizeof(p->a[0]), length);
+	p->r = calloc(length * 4, sizeof(p->r[0]));
+	p->g = p->r + length;
+	p->b = p->g + length;
+	p->a = p->b + length;
 
 	for (i = 0; i < length; i++) {
 		ratio = from + ((float)i / (float)length) * multiplier;
@@ -201,9 +201,6 @@ static void pallette_init(struct pallette_s *p, size_t length, float from, float
 static void pallette_free(struct pallette_s *p)
 {
 	free(p->r);
-	free(p->g);
-	free(p->b);
-	free(p->a);
 }
 
 static void draw_pixels(
@@ -238,9 +235,16 @@ static void draw_pixels(
 			index = line * spec->cols + col;
 			itr = iterations[index];
 			is_black = itr >= spec->iterations;
-			img[index].r = pallette_red(&pallette, itr) * !is_black;
-			img[index].g = pallette_green(&pallette, itr) * !is_black;
-			img[index].b = pallette_blue(&pallette, itr) * !is_black;
+
+			if (is_black) {
+				img[index].r = 0;
+				img[index].g = 0;
+				img[index].b = 0;
+			} else {
+				img[index].r = pallette_red(&pallette, itr);
+				img[index].g = pallette_green(&pallette, itr);
+				img[index].b = pallette_blue(&pallette, itr);
+			}
 		}
 	}
 
