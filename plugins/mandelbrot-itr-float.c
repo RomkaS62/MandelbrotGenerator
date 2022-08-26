@@ -71,54 +71,6 @@ struct mandelbrot_block_s {
 	unsigned iterations[BLOCK_LENGTH];
 };
 
-/* Test to see if a point is inside the main cardiod:
- *
- * p = sqrt((x - 1/4)^2 + y^2)
- * x <= p - 2p^2 + 1/4
- *
- * Square roots are a pain to compute:
- *
- * x <= sqrt((x - 1/4)^2 + y^2) - 2((x - 1/4)^2 + y^2) + 1/4
- * x - 1/4 + 2((x - 1/4)^2 + y^2) <= sqrt((x - 1/4)^2 + y^2)
- * (x - 1/4 + 2((x - 1/4)^2 + y^2))^2 <= (x - 1/4)^2 + y^2
- *
- * a = (x - 1/4 + 2((x - 1/4)^2 + y^2))^2
- * b = (x - 1/4)^2 + y^2
- */
-static int block_inside_main_cardiod(struct mandelbrot_block_s *block)
-{
-	int i;
-	float a;
-	float b;
-	float x;
-	float y;
-
-	for (i = 0; i < BLOCK_LENGTH; i++) {
-		x = block->real[i];
-		y = block->img[i];
-
-		a = x - 0.25f + 2.0f * (SQUARE(x - 0.25f) + SQUARE(y));
-		a *= a;
-
-		b = SQUARE(x - 0.25f) + SQUARE(y);
-
-		if (a > b) {
-			return 0;
-		}
-	}
-
-	return 1;
-}
-
-static void block_set_itr(struct mandelbrot_block_s *block, unsigned itr)
-{
-	int i;
-
-	for (i = 0; i < BLOCK_LENGTH; i++) {
-		block->iterations[i] = itr;
-	}
-}
-
 static void iterate_block(
 	struct mandelbrot_block_s *block,
 	unsigned itr_count)
@@ -129,11 +81,6 @@ static void iterate_block(
 	float img_sqr;
 
 	ASSUME_ALIGNED(block, BUFFER_ALIGNMENT);
-
-	if (block_inside_main_cardiod(block)) {
-		block_set_itr(block, itr_count);
-		return;
-	}
 
 	memcpy(block->real_ret, block->real, sizeof(block->real));
 	memcpy(block->img_ret, block->img, sizeof(block->img));
@@ -176,6 +123,7 @@ static void iterate_mandelbrot(
 	buf_len = block_rows * block_cols;
 
 	blocks = frg_aligned_malloc(buf_len * sizeof(blocks[0]), BUFFER_ALIGNMENT);
+	memset(blocks, 0, buf_len * sizeof(blocks[0]));
 
 	for (i = 0; i < block_rows; i++) {
 		from_y = spec->from_y + i * spec->step * BLOCK_ROWS;
