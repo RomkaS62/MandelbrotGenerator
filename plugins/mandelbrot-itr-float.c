@@ -1,10 +1,9 @@
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "mandelbrot-itr.h"
-#include "fractalgen/plugin.h"
 #include "fractalgen/memmove.h"
+#include "fractalgen/plugin.h"
 
 static void matrix_x_fs(float * restrict ret, size_t rows, size_t cols, float from, float step)
 {
@@ -102,9 +101,9 @@ static inline size_t ceil_div(size_t num, size_t den)
 }
 
 static void iterate_mandelbrot(
-	const struct iteration_spec_s *spec,
+	const struct frg_iteration_request_s *spec,
 	unsigned * restrict iterations,
-	const struct param_set_s *params)
+	const struct frg_param_set_s *params)
 {
 	struct pack_matrix_blocks_args_s pack_args;
 	struct mandelbrot_block_s *blocks;
@@ -156,12 +155,7 @@ static void iterate_mandelbrot(
 	free(blocks);
 }
 
-static const struct iterator_func_s itr_funcs[] = {
-	{ "mandelbrot-float", iterate_mandelbrot }
-};
-
-#define ITR_FUNC_COUNT (sizeof(itr_funcs) / sizeof(itr_funcs[0]))
-
-const struct fractal_iterator_s iterators = {
-	ITR_FUNC_COUNT, itr_funcs, 0, NULL
-};
+extern void frg_module_init(struct frg_render_fn_repo_s *itr)
+{
+	frg_fn_repo_register_iterator(itr, "mandelbrot-float", iterate_mandelbrot);
+}

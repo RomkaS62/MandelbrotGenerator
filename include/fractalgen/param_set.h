@@ -20,14 +20,14 @@ struct value_s {
 	int type;
 };
 
-struct param_set_s {
+struct frg_param_set_s {
 	int length;
 	struct value_s *values;
 };
 
-int param_set_get_double(const struct param_set_s *set, const char *name, double *val);
-int param_set_value_exists(const struct param_set_s *set, const char *name);
-double param_set_get_double_d(const struct param_set_s *set, const char *name, double default_val);
+int param_set_get_double(const struct frg_param_set_s *set, const char *name, double *val);
+int param_set_value_exists(const struct frg_param_set_s *set, const char *name);
+double param_set_get_double_d(const struct frg_param_set_s *set, const char *name, double default_val);
 
 #ifdef __cplusplus
 }

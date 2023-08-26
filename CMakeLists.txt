@@ -33,7 +33,7 @@ set(INCLUDE_DIRS "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/include")
 
 add_subdirectory(libfractalgen)
 
-add_executable(frgen fractalgen.cpp bmp.c parse.c global.c frgen_string.c)
+add_executable(frgen fractalgen.cpp bmp.c parse.c global.c frgen_string.c plugin.c)
 target_link_libraries(frgen Threads::Threads dl gramas fractalgen)
 target_include_directories(frgen PRIVATE "${INCLUDE_DIRS}")
 

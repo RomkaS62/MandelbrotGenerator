@@ -1,8 +1,8 @@
-#include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "fractalgen/plugin.h"
-#include "render-rgb.h"
 
 #include "debug.h"
 
@@ -206,10 +206,10 @@ static void pallette_free(struct pallette_s *p)
 }
 
 static void draw_pixels(
-		const struct iteration_spec_s *spec,
+		const struct frg_iteration_request_s *spec,
 		unsigned * restrict iterations,
 		struct pixel *img,
-		const struct param_set_s *set)
+		const struct frg_param_set_s *set)
 {
 	struct pallette_s pallette;
 	size_t line;
@@ -255,10 +255,7 @@ static void draw_pixels(
 	pallette_free(&pallette);
 }
 
-static const struct render_func_s renderers[] = {
-	{ "render-rgb", draw_pixels }
-};
-
-const struct fractal_iterator_s iterators = {
-	0, NULL, 1, renderers
-};
+extern void frg_module_init(struct frg_render_fn_repo_s *itr)
+{
+	frg_fn_repo_register_renderer(itr, "render-rgb", draw_pixels);
+}

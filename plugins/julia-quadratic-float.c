@@ -106,9 +106,9 @@ static void julia_iterate(
 }
 
 static void iterate_old(
-	const struct iteration_spec_s *spec,
+	const struct frg_iteration_request_s *spec,
 	unsigned * restrict iterations,
-	const struct param_set_s *params)
+	const struct frg_param_set_s *params)
 {
 	float *buf;
 	float *real;
@@ -214,9 +214,9 @@ static void iterate_block(struct julia_block_s *block, unsigned iterations,
 }
 
 static void iterate(
-	const struct iteration_spec_s *spec,
+	const struct frg_iteration_request_s *spec,
 	unsigned * restrict iterations,
-	const struct param_set_s *params)
+	const struct frg_param_set_s *params)
 {
 	struct julia_block_s *blocks;
 	size_t block_rows;
@@ -271,14 +271,7 @@ static void iterate(
 	free(blocks);
 }
 
-static const struct iterator_func_s itr_funcs[] = {
-	{ "julia-float", iterate }
-};
-
-#define ITR_FUNC_COUNT	(sizeof(itr_funcs) / sizeof(itr_funcs[0]))
-
-extern const struct fractal_iterator_s iterators;
-
-const struct fractal_iterator_s iterators = {
-	ITR_FUNC_COUNT, itr_funcs, 0, NULL
-};
+void frg_module_init(struct frg_render_fn_repo_s *itr)
+{
+	frg_fn_repo_register_iterator(itr, "julia-float", iterate);
+}

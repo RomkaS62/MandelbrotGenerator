@@ -1,6 +1,8 @@
 #ifndef MANDELBROT_FRACTAL_ITERATOR_H
 #define MANDELBROT_FRACTAL_ITERATOR_H
 
+#include <gramas/ptr_array.h>
+
 #include "bmp.h"
 #include "fractalgen/param_set.h"
 
@@ -8,7 +10,7 @@
 extern "C" {
 #endif
 
-struct iteration_spec_s {
+struct frg_iteration_request_s {
 	unsigned short rows;
 	unsigned short cols;
 	unsigned iterations;
@@ -18,32 +20,51 @@ struct iteration_spec_s {
 };
 
 typedef void (*iterate_fn)(
-	const struct iteration_spec_s *spec,
+	const struct frg_iteration_request_s *spec,
 	unsigned * restrict iterations,
-	const struct param_set_s *params);
+	const struct frg_param_set_s *params);
 
-struct iterator_func_s {
-	const char *name;
+struct frg_iterate_func_s {
+	char *name;
 	iterate_fn iterate;
 };
 
 typedef void (*render_fn)(
-	const struct iteration_spec_s *spec,
+	const struct frg_iteration_request_s *spec,
 	unsigned * restrict iterations,
 	struct pixel *img,
-	const struct param_set_s *params);
+	const struct frg_param_set_s *params);
 
-struct render_func_s {
-	const char *name;
+struct frg_render_func_s {
+	char *name;
 	render_fn render;
 };
 
-struct fractal_iterator_s {
-	const int iterate_func_count;
-	const struct iterator_func_s *iterate_funcs;
-	const int render_func_count;
-	const struct render_func_s *render_funcs;
+struct frg_render_fn_repo_s {
+	struct ptr_array iterate_funcs;
+	struct ptr_array render_funcs;
 };
+
+typedef int (*frg_module_init_fn)(struct frg_render_fn_repo_s *itr);
+
+int frg_load_modules(
+		const char *iterator_glob_pattern,
+		struct frg_render_fn_repo_s *iterators);
+
+void frg_fn_repo_init(struct frg_render_fn_repo_s *itr);
+void frg_fn_repo_destroy(struct frg_render_fn_repo_s *itr);
+iterate_fn frg_fn_repo_get_iterator(struct frg_render_fn_repo_s *itr, const char *name);
+render_fn frg_fn_repo_get_renderer(struct frg_render_fn_repo_s *itr, const char *name);
+
+void frg_fn_repo_register_iterator(
+		struct frg_render_fn_repo_s *itr,
+		const char *name,
+		iterate_fn fn);
+
+void frg_fn_repo_register_renderer(
+		struct frg_render_fn_repo_s *itr,
+		const char *name,
+		render_fn fn);
 
 #ifdef __cplusplus
 }
